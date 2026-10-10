@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OLUVOLT ACATECH SCHOOL · Entry</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+:root{--navy:#0b3d6e;--navy2:#182848;--gold:#c9a227;--ink:#1d2733;--muted:#6b7785;--line:#d9dee5;--paper:#fbfaf6;--ok:#1e7b4a;--bad:#a4262c}
+*{box-sizing:border-box}
+body{margin:0;font-family:Georgia,"Times New Roman",serif;color:var(--ink);background:var(--paper)}
+header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:18px 20px;text-align:center;border-bottom:4px solid var(--gold)}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}
+header p{margin:4px 0 0;font-size:13px;opacity:.85}
+main{max-width:620px;margin:20px auto;padding:0 14px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.card h2{margin:0 0 10px;font-size:18px;color:var(--navy);border-bottom:1px solid var(--line);padding-bottom:8px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input{width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:6px;font:inherit}
+button{font:inherit;padding:12px 18px;border:0;border-radius:6px;cursor:pointer;color:#fff;background:var(--navy);margin-top:12px}
+button.gold{background:var(--gold);color:var(--ink)}
+button.ghost{background:#eef1f5;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.hidden{display:none}
+.msg{padding:12px;border-radius:6px;margin-top:12px;font-size:15px;line-height:1.4}
+.msg.ok{background:#e8f5ee;color:var(--ok)} .msg.bad{background:#fbeaea;color:var(--bad)} .msg.info{background:#f4f7fb;color:var(--ink)}
+#video{width:100%;max-height:360px;background:#000;border-radius:8px}
+.scan-hint{font-size:13px;color:var(--muted);margin-top:8px}
+.big{font-size:20px;font-weight:700;margin:0 0 4px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row button{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>OLUVOLT ACATECH SCHOOL</h1>
+  <p>Entry · staff on duty only</p>
+</header>
+
+<main>
+  <section id="loginCard" class="card">
+    <h2>Staff Sign-in</h2>
+    <label for="username">Username</label>
+    <input id="username" type="text" autocomplete="username" autocapitalize="none">
+    <label for="pin">PIN</label>
+    <input id="pin" type="password" autocomplete="current-password" inputmode="text">
+    <button id="loginBtn">Sign in</button>
+    <div id="loginMsg" class="msg bad hidden"></div>
+  </section>
+
+  <section id="scanCard" class="card hidden">
+    <h2 id="welcome">Scanner</h2>
+    <div id="dutyMsg" class="msg info hidden"></div>
+
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas" class="hidden"></canvas>
+    <div class="row">
+      <button id="startBtn" class="gold">Start scanning</button>
+      <button id="stopBtn" class="ghost">Stop</button>
+    </div>
+    <div class="scan-hint">Hold a student's card in front of the camera. Each card is recorded once per day.</div>
+
+    <div id="result" class="msg info hidden"></div>
+
+    <div class="row" style="margin-top:14px">
+      <button id="signOutBtn" class="ghost">Sign out</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const SUPABASE_URL = "https://wgbfdwwbqbcoarmplxoh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_UL7NKpLAbmZFnlV0zJkw0A_J5Cfid9A";
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function show(el, on){ el.classList.toggle("hidden", !on); }
+function note(el, text, kind){ el.textContent = text; el.className = "msg " + kind; show(el, true); }
+
+// The staff member's sign-in is kept only in this page's memory, never saved to the device.
+let staff = null;          // { username, pin, full_name }
+let scanning = false, busy = false, lastCode = null, lastAt = 0;
+let stream = null;
+
+/* ---------- sign-in ---------- */
+$("loginBtn").onclick = async () => {
+  show($("loginMsg"), false);
+  const username = $("username").value.trim();
+  const pin = $("pin").value;
+  if(!username || !pin){ note($("loginMsg"), "Enter your username and PIN.", "bad"); return; }
+
+  $("loginBtn").disabled = true;
+  const { data, error } = await supa.rpc("verify_staff", { p_username: username, p_pin: pin });
+  $("loginBtn").disabled = false;
+
+  if(error || !data || data.error){
+    note($("loginMsg"), (data && data.error) || (error && error.message) || "Could not sign in.", "bad");
+    return;
+  }
+
+  staff = { username, pin, full_name: data.full_name };
+  $("pin").value = "";
+  show($("loginCard"), false);
+  show($("scanCard"), true);
+  $("welcome").textContent = `Welcome, ${data.full_name}`;
+
+  if(data.is_today_officer){
+    note($("dutyMsg"), "You are on gate duty today. You can scan cards.", "ok");
+    $("startBtn").disabled = false;
+  }else{
+    note($("dutyMsg"), `You are not on gate duty today. Today's gate duty: ${data.officer_name || "nobody set"}.`, "bad");
+    $("startBtn").disabled = true;
+  }
+};
+$("pin").addEventListener("keydown", e => { if(e.key === "Enter") $("loginBtn").click(); });
+
+/* ---------- camera and scanning ---------- */
+async function startCamera(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+  }catch(e){
+    note($("result"), "The camera could not be opened. Allow camera access for this page and try again.", "bad");
+    return;
+  }
+  $("video").srcObject = stream;
+  await $("video").play();
+  scanning = true;
+  show($("result"), false);
+  requestAnimationFrame(tick);
+}
+
+function stopCamera(){
+  scanning = false;
+  if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $("video").srcObject = null;
+}
+
+function tick(){
+  if(!scanning) return;
+  const video = $("video");
+  if(video.readyState === video.HAVE_ENOUGH_DATA && !busy){
+    const canvas = $("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+    // Ignore the same card for 4 seconds, so one card is not read again and again
+    if(code && code.data && !(code.data === lastCode && Date.now() - lastAt < 4000)){
+      lastCode = code.data;
+      lastAt = Date.now();
+      handleCode(code.data);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+async function handleCode(data){
+  if(!data.startsWith("OLAS:")){
+    note($("result"), "That is not a school card.", "bad");
+    return;
+  }
+  busy = true;
+  const { data: res, error } = await supa.rpc("gate_mark_attendance", {
+    p_username: staff.username, p_pin: staff.pin, p_card: data
+  });
+  busy = false;
+
+  if(error || !res || res.error){
+    note($("result"), (res && res.error) || (error && error.message) || "The card could not be recorded.", "bad");
+    return;
+  }
+  const time = new Date(res.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if(res.status === "marked"){
+    note($("result"), `✔ Marked present: ${res.student} (${res.class || ""}) at ${time}`, "ok");
+  }else{
+    note($("result"), `Already marked today: ${res.student} (${res.class || ""}), first at ${time}`, "info");
+  }
+}
+
+$("startBtn").onclick = () => { startCamera(); $("startBtn").disabled = true; };
+$("stopBtn").onclick = () => { stopCamera(); $("startBtn").disabled = false; };
+
+$("signOutBtn").onclick = () => {
+  stopCamera();
+  staff = null;
+  $("username").value = ""; $("pin").value = "";
+  show($("scanCard"), false);
+  show($("result"), false);
+  show($("loginCard"), true);
+};
+</script>
+</body>
+</html>
