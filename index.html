@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OLUVOLT ACATECH SCHOOL — Result Management System</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&display=swap">
 <style>
 :root{
@@ -547,6 +548,9 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="dashboard-card nav-card" data-view="exams"><div style="font-size:26px">🖊️</div>Exams</div>
         <div class="dashboard-card nav-card" data-view="cbt"><div style="font-size:26px">💻</div>CBT Practice</div>
         <div class="dashboard-card nav-card" data-view="notices"><div style="font-size:26px">📢</div>Notices</div>
+        <div class="dashboard-card nav-card" data-view="cards"><div style="font-size:26px">🪪</div>Student Cards</div>
+        <div class="dashboard-card nav-card" data-view="staff"><div style="font-size:26px">👥</div>Staff</div>
+        <div class="dashboard-card nav-card" data-view="attendance"><div style="font-size:26px">🗓️</div>Attendance</div>
         <div class="dashboard-card nav-card" data-view="helpdesk" style="position:relative">
           <div style="font-size:26px">🛎️</div>Help Desk
           <span id="ticketBadge" class="hidden" style="position:absolute;top:6px;right:6px;background:var(--danger);color:#fff;border-radius:50%;min-width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px">0</span>
@@ -566,6 +570,19 @@ h2,h3{color:var(--nav);margin-top:0}
       </div>
       <div class="info">
         <strong id="dashboardSession">2026/2027</strong> • <strong id="dashboardTerm">First Term</strong>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>Analytics for This Term</h3>
+        <div class="info">
+          Pass mark is <strong>40 out of 100</strong>, the same line the report uses to separate passes from F.
+          Bars show the class or subject average, and the share of scores that passed.
+        </div>
+        <div id="analyticsSummary" style="margin:10px 0;font-weight:700"></div>
+        <h4>Class averages and pass rates</h4>
+        <div id="classAnalytics"></div>
+        <h4 style="margin-top:18px">Subject pass rates (weakest first)</h4>
+        <div id="subjectAnalytics"></div>
       </div>
     </section>
 
@@ -831,12 +848,29 @@ h2,h3{color:var(--nav);margin-top:0}
           <input id="examDuration" type="number" min="1" placeholder="e.g. 30">
         </div>
       </div>
+      <div class="formgrid" style="margin-top:10px">
+        <div class="field"><label for="examOpens">Opens at (optional)</label><input id="examOpens" type="datetime-local"></div>
+        <div class="field"><label for="examCloses">Closes at (optional)</label><input id="examCloses" type="datetime-local"></div>
+      </div>
       <button id="createExamBtn" class="btn primary" style="margin-top:8px">Create Exam</button>
 
       <h3 style="margin-top:20px">Existing Exams</h3>
       <div id="examList"></div>
 
       <!-- Question builder + submissions, shown when an exam is selected -->
+      <div id="examWindowPanel" class="subcard hidden" style="margin-top:14px">
+        <h3>Set Exam Window</h3>
+        <input id="examWinId" type="hidden">
+        <div class="formgrid">
+          <div class="field"><label for="examWinOpen">Opens at (blank = no start time)</label><input id="examWinOpen" type="datetime-local"></div>
+          <div class="field"><label for="examWinClose">Closes at (blank = no end time)</label><input id="examWinClose" type="datetime-local"></div>
+        </div>
+        <div class="info" style="margin-top:8px">Students can take the exam only inside this window, and only while it is also marked Open.</div>
+        <button id="examWinSaveBtn" class="btn success" style="margin-top:8px">Save Window</button>
+        <button id="examWinClearBtn" class="btn secondary" style="margin-top:8px">Clear Window</button>
+        <button id="examWinCancelBtn" class="btn secondary" style="margin-top:8px">Cancel</button>
+      </div>
+
       <div id="examDetailPanel" class="hidden" style="margin-top:20px">
         <div class="info" id="examDetailTitle"></div>
 
@@ -982,6 +1016,81 @@ h2,h3{color:var(--nav);margin-top:0}
           </table>
         </div>
       </div>
+    </section>
+
+    <!-- ATTENDANCE -->
+    <section id="attendanceView" class="panel view hidden">
+      <h2>Attendance</h2>
+      <div class="info">
+        Attendance is recorded when a student's card is scanned at the gate. Pick a class and a date
+        to see who was present, the time they were marked, and which staff member scanned them.
+      </div>
+      <div class="formgrid" style="margin-top:12px">
+        <div class="field"><label for="attClassSelect">Class</label><select id="attClassSelect"></select></div>
+        <div class="field"><label for="attDate">Date</label><input id="attDate" type="date"></div>
+      </div>
+      <div id="attSummary" style="margin-top:12px;font-weight:700"></div>
+      <div id="attList" style="margin-top:10px;overflow-x:auto"></div>
+    </section>
+
+    <!-- STAFF -->
+    <section id="staffView" class="panel view hidden">
+      <h2>Staff</h2>
+
+      <div class="subcard">
+        <h3>Staff Accounts</h3>
+        <div class="info">
+          Create a staff account for each teacher. Staff will use their username and PIN to sign in to the teacher module.
+          A PIN must be at least 4 characters. Disable an account to stop it working, without deleting its history.
+        </div>
+        <div class="formgrid" style="margin-top:10px">
+          <div class="field"><label for="staffName">Full name</label><input id="staffName" type="text"></div>
+          <div class="field"><label for="staffUsername">Username</label><input id="staffUsername" type="text" autocomplete="off"></div>
+          <div class="field"><label for="staffPin">PIN (4 or more characters)</label><input id="staffPin" type="password" autocomplete="new-password"></div>
+        </div>
+        <button id="createStaffBtn" class="btn primary" style="margin-top:8px">Create Staff Account</button>
+        <div id="staffList" style="margin-top:14px"></div>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>Gate Duty Rotation</h3>
+        <div class="info">
+          Pick up to 5 active staff for gate duty. The duty passes to the next person in this order each day,
+          and starts again at the top after the last person.
+        </div>
+        <div id="gateSlots" style="margin-top:10px"></div>
+        <button id="saveGateBtn" class="btn success" style="margin-top:10px">Save Gate Duty</button>
+        <div id="gateToday" style="margin-top:12px;font-weight:700"></div>
+      </div>
+    </section>
+
+    <!-- STUDENT CARDS -->
+    <section id="cardsView" class="panel view hidden">
+      <style>
+        .id-card{width:270px;border:2px solid #0b3d6e;border-radius:10px;padding:12px;text-align:center;display:inline-block;margin:8px;vertical-align:top;background:#fff;break-inside:avoid}
+        .id-head{background:#0b3d6e;color:#fff;font-weight:700;font-size:13px;padding:6px;border-radius:6px;letter-spacing:.3px}
+        .id-qr svg{width:170px;height:170px;margin:8px auto;display:block}
+        .id-name{font-weight:800;font-size:15px;color:#1d2733}
+        .id-meta{font-size:12px;color:#6b7785;margin-top:4px}
+        @media print{
+          body *{visibility:hidden}
+          #cardsGrid, #cardsGrid *{visibility:visible}
+          #cardsGrid{position:absolute;left:0;top:0;width:100%}
+          .no-print{display:none !important}
+        }
+      </style>
+      <h2>Student Cards</h2>
+      <div class="info">
+        Each student has a QR card. Scanning it at the gate records that student's attendance.
+        A card's code can be reset if the card is lost. The old card then stops working.
+      </div>
+      <div class="formgrid no-print" style="margin-top:12px">
+        <div class="field"><label for="cardsClassSelect">Class</label><select id="cardsClassSelect"></select></div>
+      </div>
+      <div class="row no-print" style="margin-top:10px">
+        <button id="printCardsBtn" class="btn primary">Print these cards</button>
+      </div>
+      <div id="cardsGrid" style="margin-top:14px"></div>
     </section>
 
     <!-- NOTICES -->
@@ -1319,6 +1428,29 @@ $("studentLoginBtn").onclick = async function(){
 };
 
 // Converts the chosen/captured photo file to a base64 data URL for storage.
+// Shrinks a passport photo before it is stored: at most 320 px on the longest side, saved as a compressed JPEG.
+function compressPhotoFile(file, maxSide = 320, quality = 0.7){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";              // white behind transparent PNGs, so they don't turn black
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That file could not be read as a picture.")); };
+    img.src = url;
+  });
+}
+
 function readFileAsDataURL(file){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1331,7 +1463,7 @@ function readFileAsDataURL(file){
 $("regPassportPhoto").onchange = async function(){
   const file = this.files[0];
   if(!file) return;
-  const dataUrl = await readFileAsDataURL(file);
+  const dataUrl = await compressPhotoFile(file);
   $("regPassportPreview").src = dataUrl;
   $("regPassportPreview").classList.remove("hidden");
 };
@@ -1339,7 +1471,7 @@ $("regPassportPhoto").onchange = async function(){
 $("bioPassportPhoto").onchange = async function(){
   const file = this.files[0];
   if(!file) return;
-  const dataUrl = await readFileAsDataURL(file);
+  const dataUrl = await compressPhotoFile(file);
   $("bioPassportPreview").src = dataUrl;
   $("bioPassportPreview").classList.remove("hidden");
 };
@@ -1350,7 +1482,7 @@ $("saveBioBtn").onclick = async function(){
   let photoDataUrl = null;
   const photoFile = $("bioPassportPhoto").files[0];
   if(photoFile){
-    photoDataUrl = await readFileAsDataURL(photoFile);
+    photoDataUrl = await compressPhotoFile(photoFile);
   }
 
   const btn = $("saveBioBtn");
@@ -1415,7 +1547,7 @@ $("registerBtn").onclick = async function(){
   let photoDataUrl = null;
   const photoFile = $("regPassportPhoto").files[0];
   if(photoFile){
-    photoDataUrl = await readFileAsDataURL(photoFile);
+    photoDataUrl = await compressPhotoFile(photoFile);
   }
 
   const btn = $("registerBtn");
@@ -1957,6 +2089,8 @@ function prefillBioForm(){
 }
 
 /* ================= STUDENT PORTAL: RESULTS (publish-gated) ================= */
+let publishedTermList = [];
+
 async function renderPublishedResultsList(){
   const box = $("publishedResultsList");
   box.innerHTML = '<div class="empty">Loading…</div>';
@@ -1978,21 +2112,47 @@ async function renderPublishedResultsList(){
     return;
   }
 
-  box.innerHTML = "";
-  results.forEach(term => {
-    const total = (term.scores || []).reduce((sum, r) => sum + Number(r.total), 0);
-    const average = term.scores.length ? total / term.scores.length : 0;
+  // Group by session (newest first), and order each session's terms First, Second, Third
+  const termOrder = { "First Term": 1, "Second Term": 2, "Third Term": 3 };
+  const sessions = {};
+  results.forEach(t => { (sessions[t.session] = sessions[t.session] || []).push(t); });
+  const sessionNames = Object.keys(sessions).sort().reverse();
 
-    const row = document.createElement("div");
-    row.className = "student-card";
-    row.innerHTML = `
-      <span><strong>${esc(term.session)} — ${esc(term.term)}</strong>
-        <br><small style="color:var(--muted)">Total: ${total} · Average: ${average.toFixed(2)}</small>
-      </span>
-      <button class="btn primary view-term-btn">View Full Report</button>
-    `;
-    row.querySelector(".view-term-btn").onclick = () => renderReportForTerm(term);
-    box.appendChild(row);
+  publishedTermList = [];
+  let html = "";
+  sessionNames.forEach(sess => {
+    const terms = sessions[sess].slice().sort((x, y) => (termOrder[x.term] || 9) - (termOrder[y.term] || 9));
+    html += `<div style="margin-top:18px">
+      <h3 style="color:var(--navy);border-bottom:2px solid var(--line);padding-bottom:6px;margin:0 0 10px">${esc(sess)} Session</h3>`;
+
+    terms.forEach(term => {
+      const idx = publishedTermList.push(term) - 1;
+      const scores = term.scores || [];
+      const total = scores.reduce((sum, r) => sum + Number(r.total), 0);
+      const average = scores.length ? total / scores.length : 0;
+      html += `
+        <div class="student-card" style="align-items:center">
+          <span><strong>${esc(term.term)}</strong>
+            <br><small style="color:var(--muted)">${scores.length} subject(s) · Total: ${total} · Average: ${average.toFixed(2)}</small>
+          </span>
+          <span>
+            <button class="btn secondary view-term-btn" data-idx="${idx}">View</button>
+            <button class="btn primary print-term-btn" data-idx="${idx}">Print / Save PDF</button>
+          </span>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  box.innerHTML = html;
+  box.querySelectorAll(".view-term-btn").forEach(btn => {
+    btn.onclick = () => renderReportForTerm(publishedTermList[Number(btn.dataset.idx)]);
+  });
+  box.querySelectorAll(".print-term-btn").forEach(btn => {
+    btn.onclick = () => {
+      renderReportForTerm(publishedTermList[Number(btn.dataset.idx)]);
+      setTimeout(() => window.print(), 350);
+    };
   });
 }
 
@@ -2099,7 +2259,7 @@ async function loadAll(){
     supa.from("classes").select("*").order("name"),
     supa.from("subjects").select("*").order("name"),
     supa.from("class_subjects").select("*"),
-    supa.from("students").select("id,full_name,surname,class_id,admission_no,is_demo,registered,password_hash,failed_login_attempts,locked_until,date_of_birth,gender,home_address,student_phone,father_name,father_phone,father_occupation,mother_name,mother_phone,mother_occupation,previous_school,previous_class").order("full_name"),
+    supa.from("students").select("id,full_name,surname,class_id,admission_no,is_demo,registered,card_token,password_hash,failed_login_attempts,locked_until,date_of_birth,gender,home_address,student_phone,father_name,father_phone,father_occupation,mother_name,mother_phone,mother_occupation,previous_school,previous_class").order("full_name"),
     supa.from("score_ranges").select("*")
   ]);
 
@@ -2171,10 +2331,13 @@ function showView(name){
   if(name === "scores") renderScoresTable();
   if(name === "reports") { updateStudentSelect(); loadExtrasForSelectedStudent(); }
   if(name === "ranges") renderRanges();
-  if(name === "history") { renderHistory(); renderPublishList(); renderBatches(); }
+  if(name === "history") { renderHistory(); refreshPublishClasses(); renderBatches(); }
   if(name === "exams") { updateExamSubjectSelect(); renderExamList(); }
   if(name === "cbt") { updateCbtSubjectSelect(); renderCbtList(); }
   if(name === "notices") renderNoticesAdmin();
+  if(name === "cards") renderCardsView();
+  if(name === "staff") renderStaffView();
+  if(name === "attendance") renderAttendanceView();
   if(name === "helpdesk") renderTickets();
 }
 document.querySelectorAll(".nav-card[data-view]").forEach(b => {
@@ -2193,6 +2356,81 @@ async function updateDashboard(){
     $("dashboardTerm").textContent = cache.settings.term;
   }
   refreshTicketBadge();
+  loadAnalytics();
+}
+
+const PASS_MARK = 40;
+
+async function loadAnalytics(){
+  const { data, error } = await supa.from("scores")
+    .select("total, subject_id, subjects(name), students(class_id)")
+    .eq("session", cache.settings.session).eq("term", cache.settings.term);
+
+  if(error){
+    $("analyticsSummary").textContent = "";
+    $("classAnalytics").innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+    $("subjectAnalytics").innerHTML = "";
+    return;
+  }
+
+  const rows = data || [];
+  if(rows.length === 0){
+    $("analyticsSummary").textContent = "No scores have been saved for this term yet.";
+    $("classAnalytics").innerHTML = "";
+    $("subjectAnalytics").innerHTML = "";
+    return;
+  }
+
+  const byClass = {}, bySubject = {};
+  let allSum = 0, allPass = 0;
+  rows.forEach(r => {
+    const t = Number(r.total);
+    const passed = t >= PASS_MARK ? 1 : 0;
+    allSum += t; allPass += passed;
+
+    const cid = r.students ? Number(r.students.class_id) : null;
+    if(cid){
+      const c = byClass[cid] = byClass[cid] || { n: 0, sum: 0, pass: 0 };
+      c.n++; c.sum += t; c.pass += passed;
+    }
+    const name = r.subjects ? r.subjects.name : "Unknown";
+    const sj = bySubject[name] = bySubject[name] || { n: 0, sum: 0, pass: 0 };
+    sj.n++; sj.sum += t; sj.pass += passed;
+  });
+
+  $("analyticsSummary").textContent =
+    `${rows.length} scores · Overall average ${(allSum / rows.length).toFixed(1)} · Overall pass rate ${(allPass / rows.length * 100).toFixed(0)}%`;
+
+  const bar = (pct, color) =>
+    `<div style="background:#eef2f7;border-radius:6px;height:12px;overflow:hidden;margin:3px 0">
+       <div style="width:${Math.max(0, Math.min(100, pct)).toFixed(1)}%;height:100%;background:${color}"></div>
+     </div>`;
+
+  $("classAnalytics").innerHTML = Object.entries(byClass)
+    .map(([cid, c]) => {
+      const klass = cache.classes.find(x => x.id === Number(cid));
+      const avg = c.sum / c.n, pr = c.pass / c.n * 100;
+      return `<div style="margin:10px 0">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:14px">
+          <strong>${esc(klass ? klass.name : "Class")}</strong>
+          <span>Average ${avg.toFixed(1)} · Pass ${pr.toFixed(0)}% · ${c.n} scores</span>
+        </div>
+        ${bar(avg, "#0b3d6e")}
+        ${bar(pr, "#1e7b4a")}
+      </div>`;
+    }).join("") || '<div class="empty">No class results yet.</div>';
+
+  $("subjectAnalytics").innerHTML = Object.entries(bySubject)
+    .map(([name, sj]) => ({ name, avg: sj.sum / sj.n, pr: sj.pass / sj.n * 100, n: sj.n }))
+    .sort((a, b) => a.pr - b.pr)
+    .map(x => `<div style="margin:10px 0">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:14px">
+          <strong>${esc(x.name)}</strong>
+          <span>Average ${x.avg.toFixed(1)} · Pass ${x.pr.toFixed(0)}% · ${x.n} scores</span>
+        </div>
+        ${bar(x.avg, "#0b3d6e")}
+        ${bar(x.pr, x.pr < 50 ? "#a4262c" : "#1e7b4a")}
+      </div>`).join("");
 }
 
 async function refreshTicketBadge(){
@@ -3004,10 +3242,28 @@ $("printBtn").onclick = () => window.print();
 
 /* ================= HISTORY ================= */
 /* ================= RESULT PUBLISHING (admin) ================= */
+// Lists only classes that have at least one result this term.
+async function refreshPublishClasses(){
+  const previous = $("publishClassSelect").value;
+  const { data, error } = await supa.from("scores").select("students(class_id)")
+    .eq("session", cache.settings.session).eq("term", cache.settings.term);
+  if(error){ toast(error.message); return; }
+
+  const withResults = new Set((data || []).map(r => r.students && Number(r.students.class_id)).filter(Boolean));
+  const list = cache.classes.filter(c => withResults.has(Number(c.id)));
+  $("publishClassSelect").innerHTML = list.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  if(previous && list.some(c => String(c.id) === previous)) $("publishClassSelect").value = previous;
+  await renderPublishList();
+}
+
 async function renderPublishList(){
-  const classId = Number($("publishClassSelect").value || (cache.classes[0] && cache.classes[0].id));
-  const students = cache.students.filter(s => s.class_id === classId);
   const box = $("publishList");
+  if(!$("publishClassSelect").value){
+    box.innerHTML = '<div class="empty">No classes have results for this term yet.</div>';
+    return;
+  }
+  const classId = Number($("publishClassSelect").value);
+  const students = cache.students.filter(s => s.class_id === classId);
 
   if(students.length === 0){
     box.innerHTML = '<div class="empty">No students in this class.</div>';
@@ -3236,15 +3492,70 @@ $("createExamBtn").onclick = async function(){
 
   const { data, error } = await supa.from("exams").insert({
     class_id: classId, subject_id: subjectId, title, duration_minutes: duration,
-    session: cache.settings.session, term: cache.settings.term, is_open: false
+    session: cache.settings.session, term: cache.settings.term, is_open: false,
+    opens_at: $("examOpens").value ? new Date($("examOpens").value).toISOString() : null,
+    closes_at: $("examCloses").value ? new Date($("examCloses").value).toISOString() : null
   }).select().single();
 
   if(error){ toast(error.message); return; }
   $("examTitle").value = "";
   $("examDuration").value = "";
+  $("examOpens").value = "";
+  $("examCloses").value = "";
   toast("Exam created. Add questions, then open it for students.");
   renderExamList();
 };
+
+// Status shown to the admin. Opened/closed by hand, and by the window if one is set.
+function examStatus(exam){
+  const now = Date.now();
+  const opens = exam.opens_at ? new Date(exam.opens_at).getTime() : null;
+  const closes = exam.closes_at ? new Date(exam.closes_at).getTime() : null;
+  if(!exam.is_open) return { label: "CLOSED", cls: "demo" };
+  if(closes && now >= closes) return { label: "ENDED", cls: "demo" };
+  if(opens && now < opens) return { label: "SCHEDULED", cls: "demo" };
+  return { label: "OPEN", cls: "live" };
+}
+
+function windowText(exam){
+  const parts = [];
+  if(exam.opens_at) parts.push("Opens " + new Date(exam.opens_at).toLocaleString());
+  if(exam.closes_at) parts.push("Closes " + new Date(exam.closes_at).toLocaleString());
+  return parts.length ? " · " + parts.join(" · ") : "";
+}
+
+// Converts a stored time into the format the date-time box expects
+function toLocalInput(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openExamWindow(exam){
+  $("examWinId").value = exam.id;
+  $("examWinOpen").value = toLocalInput(exam.opens_at);
+  $("examWinClose").value = toLocalInput(exam.closes_at);
+  $("examWindowPanel").classList.remove("hidden");
+  $("examWindowPanel").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function saveExamWindow(opensAt, closesAt){
+  const id = Number($("examWinId").value);
+  const { error } = await supa.from("exams").update({ opens_at: opensAt, closes_at: closesAt }).eq("id", id);
+  if(error){ toast(error.message); return; }
+  $("examWindowPanel").classList.add("hidden");
+  toast("Exam window saved.");
+  renderExamList();
+}
+
+$("examWinSaveBtn").onclick = () => {
+  const o = $("examWinOpen").value, c = $("examWinClose").value;
+  if(o && c && new Date(c) <= new Date(o)){ toast("The closing time must be after the opening time."); return; }
+  saveExamWindow(o ? new Date(o).toISOString() : null, c ? new Date(c).toISOString() : null);
+};
+$("examWinClearBtn").onclick = () => saveExamWindow(null, null);
+$("examWinCancelBtn").onclick = () => $("examWindowPanel").classList.add("hidden");
 
 async function renderExamList(){
   const { data, error } = await supa.from("exams").select("*")
@@ -3263,10 +3574,11 @@ async function renderExamList(){
     row.className = "student-card";
     row.innerHTML = `
       <span><strong>${esc(exam.title)}</strong>
-        <span class="tag ${exam.is_open ? 'live' : 'demo'}">${exam.is_open ? 'OPEN' : 'CLOSED'}</span>
-        <br><small style="color:var(--muted)">${esc(klass ? klass.name : '')} · ${esc(subject ? subject.name : '')}${exam.duration_minutes ? ' · ' + exam.duration_minutes + ' min' : ' · No time limit'}</small>
+        <span class="tag ${examStatus(exam).cls}">${examStatus(exam).label}</span>
+        <br><small style="color:var(--muted)">${esc(klass ? klass.name : '')} · ${esc(subject ? subject.name : '')}${exam.duration_minutes ? ' · ' + exam.duration_minutes + ' min' : ' · No time limit'}${windowText(exam)}</small>
       </span>
       <span>
+        <button class="btn secondary window-btn">Window</button>
         <button class="btn secondary toggle-open-btn">${exam.is_open ? 'Close' : 'Open'}</button>
         <button class="btn primary manage-btn">Manage</button>
       </span>
@@ -3277,6 +3589,7 @@ async function renderExamList(){
       renderExamList();
     };
     row.querySelector(".manage-btn").onclick = () => openExamDetail(exam, klass, subject);
+    row.querySelector(".window-btn").onclick = () => openExamWindow(exam);
     box.appendChild(row);
   });
 }
@@ -3614,6 +3927,237 @@ async function renderCbtAttemptsTable(){
     return `<tr><td>${esc(student ? student.full_name : "Unknown")}</td><td>${att.raw_score}/${att.max_score}</td><td>${esc(when)}</td></tr>`;
   }).join("");
 }
+
+/* ================= ATTENDANCE (admin) ================= */
+// Today's date in Nigeria (UTC+1, no daylight saving)
+function todayLagos(){
+  return new Date(Date.now() + 3600 * 1000).toISOString().slice(0, 10);
+}
+
+async function renderAttendanceView(){
+  const sel = $("attClassSelect");
+  const previous = sel.value;
+  sel.innerHTML = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  if(previous && cache.classes.some(c => String(c.id) === previous)) sel.value = previous;
+  if(!$("attDate").value) $("attDate").value = todayLagos();
+  drawAttendance();
+}
+
+async function drawAttendance(){
+  const classId = Number($("attClassSelect").value);
+  const day = $("attDate").value;
+  const box = $("attList");
+  if(!classId || !day){
+    $("attSummary").textContent = "";
+    box.innerHTML = '<div class="empty">Choose a class and a date.</div>';
+    return;
+  }
+
+  const students = cache.students
+    .filter(s => s.class_id === classId)
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+  if(students.length === 0){
+    $("attSummary").textContent = "";
+    box.innerHTML = '<div class="empty">No students in this class.</div>';
+    return;
+  }
+
+  const [attRes, staffRes] = await Promise.all([
+    supa.from("attendance").select("student_id,marked_at,marked_by")
+      .eq("attendance_date", day).in("student_id", students.map(s => s.id)),
+    supa.from("staff").select("id,full_name")
+  ]);
+  if(attRes.error){ box.innerHTML = `<div class="empty">${esc(attRes.error.message)}</div>`; return; }
+
+  const staffName = {};
+  (staffRes.data || []).forEach(x => { staffName[x.id] = x.full_name; });
+  const marks = {};
+  (attRes.data || []).forEach(a => { marks[Number(a.student_id)] = a; });
+
+  const present = students.filter(s => marks[s.id]).length;
+  $("attSummary").textContent =
+    `${present} present · ${students.length - present} absent · ${students.length} students · ${day}`;
+
+  const time = t => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  box.innerHTML = `
+    <table class="data">
+      <thead><tr><th>Student</th><th>ID</th><th>Status</th><th>Time</th><th>Scanned by</th></tr></thead>
+      <tbody>${students.map(s => {
+        const m = marks[s.id];
+        return `<tr>
+          <td>${esc(s.full_name)}</td>
+          <td>${esc(s.admission_no || "")}</td>
+          <td>${m ? '<span class="tag live">PRESENT</span>' : '<span class="tag demo">ABSENT</span>'}</td>
+          <td>${m ? esc(time(m.marked_at)) : "—"}</td>
+          <td>${m && m.marked_by ? esc(staffName[m.marked_by] || "—") : "—"}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
+}
+
+$("attClassSelect").onchange = drawAttendance;
+$("attDate").onchange = drawAttendance;
+
+/* ================= STAFF (admin) ================= */
+async function renderStaffView(){
+  await Promise.all([renderStaffList(), renderGateDuty()]);
+}
+
+async function renderStaffList(){
+  const box = $("staffList");
+  const { data, error } = await supa.from("staff").select("id,full_name,username,active").order("full_name");
+  if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  if(!data || data.length === 0){ box.innerHTML = '<div class="empty">No staff accounts yet.</div>'; return; }
+
+  box.innerHTML = data.map(st => `
+    <div class="student-card" style="align-items:flex-start">
+      <span><strong>${esc(st.full_name)}</strong>
+        <span class="tag ${st.active ? 'live' : 'demo'}">${st.active ? 'ACTIVE' : 'DISABLED'}</span>
+        <br><small style="color:var(--muted)">Username: ${esc(st.username)}</small>
+      </span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <input type="password" class="staff-newpin" data-id="${st.id}" placeholder="New PIN" style="width:130px;padding:6px">
+        <button class="btn secondary staff-resetpin" data-id="${st.id}">Set PIN</button>
+        <button class="btn ${st.active ? 'danger' : 'success'} staff-toggle" data-id="${st.id}" data-active="${st.active}">${st.active ? 'Disable' : 'Enable'}</button>
+      </span>
+    </div>`).join("");
+
+  box.querySelectorAll(".staff-resetpin").forEach(btn => {
+    btn.onclick = async () => {
+      const id = Number(btn.dataset.id);
+      const pin = box.querySelector(`.staff-newpin[data-id="${id}"]`).value;
+      const { data: res, error: e } = await supa.rpc("admin_reset_staff_pin", { p_staff_id: id, p_pin: pin });
+      if(e || !res || res.error){ toast((res && res.error) || (e && e.message) || "Could not set PIN."); return; }
+      toast("PIN updated.");
+      renderStaffList();
+    };
+  });
+
+  box.querySelectorAll(".staff-toggle").forEach(btn => {
+    btn.onclick = async () => {
+      const id = Number(btn.dataset.id);
+      const nowActive = btn.dataset.active === "true";
+      const { error: e } = await supa.from("staff").update({ active: !nowActive }).eq("id", id);
+      if(e){ toast(e.message); return; }
+      toast(nowActive ? "Staff account disabled." : "Staff account enabled.");
+      renderStaffView();
+    };
+  });
+}
+
+async function renderGateDuty(){
+  const [staffRes, gateRes, todayRes] = await Promise.all([
+    supa.from("staff").select("id,full_name").eq("active", true).order("full_name"),
+    supa.from("gate_duty").select("position,staff_id").order("position"),
+    supa.rpc("gate_officer_today")
+  ]);
+  const staff = staffRes.data || [];
+  const current = {};
+  (gateRes.data || []).forEach(g => { current[g.position] = g.staff_id; });
+
+  const options = `<option value="">— none —</option>` + staff.map(st => `<option value="${st.id}">${esc(st.full_name)}</option>`).join("");
+  $("gateSlots").innerHTML = [1, 2, 3, 4, 5].map(pos => `
+    <div class="field" style="margin-bottom:8px">
+      <label for="gateSlot${pos}">Position ${pos}</label>
+      <select id="gateSlot${pos}">${options}</select>
+    </div>`).join("");
+  [1, 2, 3, 4, 5].forEach(pos => { if(current[pos]) $("gateSlot" + pos).value = String(current[pos]); });
+
+  const today = todayRes.data;
+  $("gateToday").textContent = today && today.full_name
+    ? `Today's gate duty: ${today.full_name}`
+    : "No gate duty set yet. Pick at least one active staff member above.";
+}
+
+$("createStaffBtn").onclick = async () => {
+  const { data: res, error } = await supa.rpc("admin_create_staff", {
+    p_name: $("staffName").value, p_username: $("staffUsername").value, p_pin: $("staffPin").value
+  });
+  if(error || !res || res.error){ toast((res && res.error) || (error && error.message) || "Could not create account."); return; }
+  $("staffName").value = ""; $("staffUsername").value = ""; $("staffPin").value = "";
+  toast("Staff account created.");
+  renderStaffView();
+};
+
+$("saveGateBtn").onclick = async () => {
+  const picks = [1, 2, 3, 4, 5].map(pos => $("gateSlot" + pos).value).filter(Boolean).map(Number);
+  if(new Set(picks).size !== picks.length){ toast("Each staff member can only appear once in the rotation."); return; }
+
+  // Replace the whole rotation at once
+  const { error: delErr } = await supa.from("gate_duty").delete().gte("position", 1);
+  if(delErr){ toast(delErr.message); return; }
+  if(picks.length){
+    const rows = picks.map((staff_id, i) => ({ position: i + 1, staff_id }));
+    const { error: insErr } = await supa.from("gate_duty").insert(rows);
+    if(insErr){ toast(insErr.message); return; }
+  }
+  toast("Gate duty saved.");
+  renderGateDuty();
+};
+
+/* ================= STUDENT CARDS (admin) ================= */
+function renderCardsView(){
+  const sel = $("cardsClassSelect");
+  const previous = sel.value;
+  sel.innerHTML = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  if(previous && cache.classes.some(c => String(c.id) === previous)) sel.value = previous;
+  drawCards();
+}
+
+function cardHTML(student, klass){
+  if(!student.card_token){
+    return `<div class="id-card"><div class="id-name">${esc(student.full_name)}</div>
+      <div class="id-meta">No card code yet. Run phase 26 in Supabase, then reload.</div></div>`;
+  }
+  const qr = qrcode(0, "M");
+  qr.addData("OLAS:" + student.card_token);
+  qr.make();
+  return `<div class="id-card">
+    <div class="id-head">OLUVOLT ACATECH SCHOOL</div>
+    <div class="id-qr">${qr.createSvgTag(4, 0)}</div>
+    <div class="id-name">${esc(student.full_name)}</div>
+    <div class="id-meta">${esc(student.admission_no || "")} · ${esc(klass ? klass.name : "")}</div>
+    <div class="no-print" style="margin-top:8px">
+      <button class="btn danger btn-reset-card" data-id="${student.id}" style="padding:6px 10px;font-size:12px">Reset card</button>
+    </div>
+  </div>`;
+}
+
+function drawCards(){
+  const classId = Number($("cardsClassSelect").value);
+  const klass = cache.classes.find(c => c.id === classId);
+  const students = cache.students.filter(s => s.class_id === classId);
+  const grid = $("cardsGrid");
+  if(students.length === 0){
+    grid.innerHTML = '<div class="empty">No students in this class.</div>';
+    return;
+  }
+  grid.innerHTML = students.map(s => cardHTML(s, klass)).join("");
+
+  grid.querySelectorAll(".btn-reset-card").forEach(btn => {
+    const id = Number(btn.dataset.id);
+    const label = "Reset card";
+    let armed = false;
+    btn.onclick = async () => {
+      if(!armed){
+        armed = true;
+        btn.textContent = "Confirm reset?";
+        setTimeout(() => { armed = false; btn.textContent = label; }, 4000);
+        return;
+      }
+      const newToken = crypto.randomUUID().replace(/-/g, "");
+      const { error } = await supa.from("students").update({ card_token: newToken }).eq("id", id);
+      if(error){ toast(error.message); return; }
+      const st = cache.students.find(x => x.id === id);
+      if(st) st.card_token = newToken;
+      toast("Card reset. The old card no longer works.");
+      drawCards();
+    };
+  });
+}
+
+$("cardsClassSelect").onchange = drawCards;
+$("printCardsBtn").onclick = () => window.print();
 
 /* ================= NOTICES (admin) ================= */
 $("postNoticeBtn").onclick = async function(){
