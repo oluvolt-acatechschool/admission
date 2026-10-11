@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OLUVOLT ACATECH SCHOOL · Entry</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
 :root{--navy:#0b3d6e;--navy2:#182848;--gold:#c9a227;--ink:#1d2733;--muted:#6b7785;--line:#d9dee5;--paper:#fbfaf6;--ok:#1e7b4a;--bad:#a4262c}
 *{box-sizing:border-box}
@@ -117,9 +116,37 @@ $("loginBtn").onclick = async () => {
 $("pin").addEventListener("keydown", e => { if(e.key === "Enter") $("loginBtn").click(); });
 
 /* ---------- camera and scanning ---------- */
+// Loads the card reader. Tries two sources in turn.
+function loadScript(url){
+  return new Promise((resolve, reject) => {
+    const tag = document.createElement("script");
+    tag.src = url;
+    tag.onload = resolve;
+    tag.onerror = reject;
+    document.head.appendChild(tag);
+  });
+}
+
+async function ensureScanner(){
+  if(typeof jsQR === "function") return true;
+  const sources = [
+    "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js",
+    "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"
+  ];
+  for(const url of sources){
+    try{
+      await loadScript(url);
+      if(typeof jsQR === "function") return true;
+    }catch(e){ /* try the next source */ }
+  }
+  return false;
+}
+
 async function startCamera(){
-  if(typeof jsQR !== "function"){
-    note($("result"), "The scanner library did not load. Check the internet connection, then reload this page.", "bad");
+  note($("result"), "Loading the card reader…", "info");
+  if(!(await ensureScanner())){
+    note($("result"), "The card reader could not be loaded. Check the internet connection, then press Start again.", "bad");
+    $("startBtn").disabled = false;
     return;
   }
   note($("result"), "Starting the camera…", "info");
