@@ -118,6 +118,11 @@ $("pin").addEventListener("keydown", e => { if(e.key === "Enter") $("loginBtn").
 
 /* ---------- camera and scanning ---------- */
 async function startCamera(){
+  if(typeof jsQR !== "function"){
+    note($("result"), "The scanner library did not load. Check the internet connection, then reload this page.", "bad");
+    return;
+  }
+  note($("result"), "Starting the camera…", "info");
   try{
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
   }catch(e){
@@ -127,7 +132,7 @@ async function startCamera(){
   $("video").srcObject = stream;
   await $("video").play();
   scanning = true;
-  show($("result"), false);
+  note($("result"), "Camera is on. Hold the card 10 to 15 cm from the lens, steady, in good light.", "info");
   requestAnimationFrame(tick);
 }
 
@@ -139,6 +144,17 @@ function stopCamera(){
 
 function tick(){
   if(!scanning) return;
+  try{
+    scanFrame();
+  }catch(e){
+    scanning = false;
+    note($("result"), "The scanner stopped because of an error: " + e.message, "bad");
+    return;
+  }
+  requestAnimationFrame(tick);
+}
+
+function scanFrame(){
   const video = $("video");
   if(video.readyState === video.HAVE_ENOUGH_DATA && !busy){
     const canvas = $("canvas");
@@ -155,7 +171,6 @@ function tick(){
       handleCode(code.data);
     }
   }
-  requestAnimationFrame(tick);
 }
 
 async function handleCode(data){
