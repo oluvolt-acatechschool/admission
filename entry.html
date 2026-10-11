@@ -105,7 +105,10 @@ $("loginBtn").onclick = async () => {
   show($("scanCard"), true);
   $("welcome").textContent = `Welcome, ${data.full_name}`;
 
-  if(data.is_today_officer){
+  if(data.holiday_reason){
+    note($("dutyMsg"), `Today is a holiday (${data.holiday_reason}). The gate is closed until the holiday is removed.`, "bad");
+    $("startBtn").disabled = true;
+  }else if(data.is_today_officer){
     note($("dutyMsg"), "You are on gate duty today. You can scan cards.", "ok");
     $("startBtn").disabled = false;
   }else{
