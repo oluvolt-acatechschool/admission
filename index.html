@@ -1155,6 +1155,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <button id="attTabDaily" class="btn primary">Daily list</button>
         <button id="attTabRegister" class="btn secondary">Class register</button>
         <button id="attTabSchool" class="btn secondary">School summary</button>
+        <button id="attTabHolidays" class="btn secondary">Holidays</button>
       </div>
 
       <div class="formgrid no-print" style="margin-top:12px">
@@ -4547,17 +4548,19 @@ function setAttTab(name){
   show($("attDaily"), name === "daily");
   show($("attRegister"), name === "register");
   show($("attSchool"), name === "school");
-  show($("attHolidayPanel"), name !== "daily");
-  $("attTabDaily").className = name === "daily" ? "btn primary" : "btn secondary";
-  $("attTabRegister").className = name === "register" ? "btn primary" : "btn secondary";
-  $("attTabSchool").className = name === "school" ? "btn primary" : "btn secondary";
+  show($("attHolidayPanel"), name === "register" || name === "school" || name === "holidays");
+  ["daily", "register", "school", "holidays"].forEach(t => {
+    const btn = $("attTab" + t.charAt(0).toUpperCase() + t.slice(1));
+    btn.className = t === name ? "btn primary" : "btn secondary";
+  });
   refreshAttendance();
 }
 
 function refreshAttendance(){
   if(attTab === "daily") drawAttendance();
   else if(attTab === "register") renderRegister();
-  else renderSchool();
+  else if(attTab === "school") renderSchool();
+  else if($("attMonth").value) renderHolidayPanel(attMonthRange($("attMonth").value));
 }
 
 // Days of a month (YYYY-MM) that are school days: Monday to Friday
@@ -4762,6 +4765,7 @@ $("attMonth").onchange = refreshAttendance;
 $("attTabDaily").onclick = () => setAttTab("daily");
 $("attTabRegister").onclick = () => setAttTab("register");
 $("attTabSchool").onclick = () => setAttTab("school");
+$("attTabHolidays").onclick = () => setAttTab("holidays");
 $("attPrintBtn").onclick = () => window.print();
 
 /* ================= STAFF (admin) ================= */
