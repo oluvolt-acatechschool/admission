@@ -369,6 +369,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="dashboard-card student-nav-card" data-sview="scheme"><div style="font-size:24px">🗓️</div>Scheme of Work</div>
         <div class="dashboard-card student-nav-card" data-sview="settings"><div style="font-size:24px">⚙️</div>Account Settings</div>
         <div class="dashboard-card student-nav-card" data-sview="cbt"><div style="font-size:24px">💻</div>CBT Practice</div>
+        <div class="dashboard-card student-nav-card" data-sview="assignments"><div style="font-size:24px">📝</div>Assignments</div>
         <div class="dashboard-card student-nav-card" data-sview="helpdesk"><div style="font-size:24px">🛎️</div>Help Desk</div>
       </div>
     </div>
@@ -430,6 +431,28 @@ h2,h3{color:var(--nav);margin-top:0}
     <section id="sview-scheme" class="panel sview hidden">
       <h2>Scheme of Work</h2>
       <div class="info">Coming soon — this term's scheme of work will appear here once it's available.</div>
+    </section>
+
+    <!-- ASSIGNMENTS (student) -->
+    <section id="sview-assignments" class="panel sview hidden">
+      <h2>Assignments</h2>
+      <div class="info">Watch the video if your teacher has shared one, then answer the questions. Your score appears as soon as you submit.</div>
+
+      <div id="stuAsgList" style="margin-top:12px"></div>
+
+      <div id="stuAsgTake" class="hidden" style="margin-top:16px">
+        <h3 id="stuAsgTitle"></h3>
+        <div id="stuAsgInstr" class="info"></div>
+        <div id="stuAsgVideo" style="margin:10px 0"></div>
+        <div id="stuAsgQs"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+          <button id="stuAsgPrev" class="btn secondary">Previous</button>
+          <span id="stuAsgProgress" style="color:var(--muted);font-size:13px"></span>
+          <button id="stuAsgNext" class="btn primary">Next</button>
+        </div>
+        <button id="stuAsgSubmit" class="btn success hidden" style="margin-top:12px;width:100%">Submit</button>
+        <div id="stuAsgMsg" class="warn hidden" style="margin-top:12px;font-weight:700"></div>
+      </div>
     </section>
 
     <!-- CBT PRACTICE -->
@@ -551,6 +574,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="dashboard-card nav-card" data-view="cards"><div style="font-size:26px">🪪</div>Student Cards</div>
         <div class="dashboard-card nav-card" data-view="staff"><div style="font-size:26px">👥</div>Staff</div>
         <div class="dashboard-card nav-card" data-view="attendance"><div style="font-size:26px">🗓️</div>Attendance</div>
+        <div class="dashboard-card nav-card" data-view="assignments"><div style="font-size:26px">📝</div>Assignments</div>
         <div class="dashboard-card nav-card" data-view="helpdesk" style="position:relative">
           <div style="font-size:26px">🛎️</div>Help Desk
           <span id="ticketBadge" class="hidden" style="position:absolute;top:6px;right:6px;background:var(--danger);color:#fff;border-radius:50%;min-width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px">0</span>
@@ -1018,19 +1042,151 @@ h2,h3{color:var(--nav);margin-top:0}
       </div>
     </section>
 
+    <!-- ASSIGNMENTS -->
+    <section id="assignmentsView" class="panel view hidden">
+      <h2>Assignments</h2>
+      <div class="info">
+        Objective assignments. Students can watch a YouTube video first, then answer questions.
+        Each student gets a random set of questions, and sees their score straight after submitting.
+      </div>
+
+      <div class="subcard" style="margin-top:12px">
+        <h3>Create Assignment</h3>
+        <div class="formgrid">
+          <div class="field"><label for="asgClass">Class</label><select id="asgClass"></select></div>
+          <div class="field"><label for="asgSubject">Subject</label><select id="asgSubject"></select></div>
+          <div class="field"><label for="asgTitle">Title</label><input id="asgTitle" type="text" placeholder="e.g. Photosynthesis Video Task"></div>
+          <div class="field"><label for="asgVideo">YouTube link (optional)</label><input id="asgVideo" type="url" placeholder="https://www.youtube.com/watch?v=..."></div>
+          <div class="field"><label for="asgPerStudent">Questions per student</label><input id="asgPerStudent" type="number" min="1" value="10"></div>
+          <div class="field"><label for="asgOpens">Opens at (optional)</label><input id="asgOpens" type="datetime-local"></div>
+          <div class="field"><label for="asgCloses">Closes at (optional)</label><input id="asgCloses" type="datetime-local"></div>
+        </div>
+        <div class="field" style="margin-top:8px"><label for="asgInstr">Instructions for students (optional)</label><textarea id="asgInstr" rows="3" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:7px"></textarea></div>
+        <button id="asgCreateBtn" class="btn primary" style="margin-top:8px">Create Assignment</button>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>Find a Video</h3>
+        <div class="info">
+          Suggested channels for the subject chosen above. Open a channel's search, pick a video,
+          copy its link, and paste it into <strong>YouTube link</strong> in the form above.
+          Check a video before you share it with students.
+        </div>
+        <div class="field" style="margin-top:10px"><label for="vidSearch">Search channels</label><input id="vidSearch" type="search" autocomplete="off" placeholder="Type a name or topic"></div>
+        <div id="vidList" style="margin-top:10px"></div>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>All Assignments</h3>
+        <div id="asgList"></div>
+      </div>
+
+      <div id="asgManagePanel" class="subcard hidden" style="margin-top:16px">
+        <div class="info" id="asgManageTitle"></div>
+        <h4>Video</h4>
+        <div id="asgVideoPreview"></div>
+
+        <h4 style="margin-top:14px">Questions (<span id="asgQCount">0</span>)</h4>
+        <div class="table-wrap">
+          <table class="data" id="asgQTable">
+            <thead><tr><th>#</th><th>Question</th><th>Correct</th><th>Marks</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h4 style="margin-top:14px">Add one question</h4>
+        <div class="field"><label for="asgQText">Question</label><input id="asgQText" type="text"></div>
+        <div class="formgrid" style="margin-top:8px">
+          <div class="field"><label for="asgQA">Option A</label><input id="asgQA" type="text"></div>
+          <div class="field"><label for="asgQB">Option B</label><input id="asgQB" type="text"></div>
+          <div class="field"><label for="asgQC">Option C</label><input id="asgQC" type="text"></div>
+          <div class="field"><label for="asgQD">Option D</label><input id="asgQD" type="text"></div>
+          <div class="field"><label for="asgQCorrect">Correct option</label><select id="asgQCorrect"><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select></div>
+          <div class="field"><label for="asgQMarks">Marks</label><input id="asgQMarks" type="number" min="1" value="1"></div>
+        </div>
+        <button id="asgAddQBtn" class="btn secondary" style="margin-top:8px">Add Question</button>
+
+        <h4 style="margin-top:14px">Bulk import</h4>
+        <div class="info">Same format as CBT Practice: <code>Q:</code>, <code>A:</code>, <code>B:</code>, <code>C:</code>, <code>D:</code>, <code>ANSWER:</code>, and <code>---</code> between questions.</div>
+        <textarea id="asgBulkText" rows="8" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:7px;font-family:monospace;font-size:13px"></textarea>
+        <button id="asgBulkBtn" class="btn primary" style="margin-top:8px">Import Questions</button>
+        <div id="asgBulkError" class="warn hidden"></div>
+
+        <h4 style="margin-top:14px">Scores</h4>
+        <div class="table-wrap">
+          <table class="data" id="asgSubTable">
+            <thead><tr><th>Student</th><th>Score</th><th>Submitted</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ATTENDANCE -->
     <section id="attendanceView" class="panel view hidden">
+      <style>
+        .att-P{background:#e8f5ee;color:#1e7b4a;font-weight:700;text-align:center}
+        .att-A{background:#fbeaea;color:#a4262c;font-weight:700;text-align:center}
+        .att-future{background:#f4f6f8}
+        .att-H{background:#fff4d6;color:#8a5a00;font-weight:700;text-align:center}
+        .att-table{border-collapse:collapse;font-size:12px;width:100%}
+        .att-table th,.att-table td{border:1px solid #d9dee5;padding:4px 6px;text-align:center;white-space:nowrap}
+        .att-table th{background:#eef2f7;color:#0b3d6e}
+        .att-table td.name,.att-table th.name{text-align:left;position:sticky;left:0;background:#fff;z-index:1}
+        .att-head{text-align:center;margin-bottom:8px}
+        @media print{
+          @page{size:A4 landscape;margin:10mm}
+          body *{visibility:hidden}
+          #attPrint, #attPrint *{visibility:visible}
+          #attPrint{position:absolute;left:0;top:0;width:100%}
+          .no-print{display:none !important}
+          .att-table{font-size:9px}
+          .att-table th,.att-table td{padding:2px 3px}
+        }
+      </style>
       <h2>Attendance</h2>
       <div class="info">
-        Attendance is recorded when a student's card is scanned at the gate. Pick a class and a date
-        to see who was present, the time they were marked, and which staff member scanned them.
+        Attendance is recorded when a student's card is scanned at the gate. Use the <strong>Daily list</strong> for one day,
+        the <strong>Class register</strong> for a whole month (the broadsheet), or the <strong>School summary</strong> for every class.
+        Days are Monday to Friday. Public holidays are not excluded yet.
       </div>
-      <div class="formgrid" style="margin-top:12px">
+
+      <div class="row no-print" style="margin-top:12px">
+        <button id="attTabDaily" class="btn primary">Daily list</button>
+        <button id="attTabRegister" class="btn secondary">Class register</button>
+        <button id="attTabSchool" class="btn secondary">School summary</button>
+      </div>
+
+      <div class="formgrid no-print" style="margin-top:12px">
         <div class="field"><label for="attClassSelect">Class</label><select id="attClassSelect"></select></div>
-        <div class="field"><label for="attDate">Date</label><input id="attDate" type="date"></div>
+        <div class="field"><label for="attDate">Date (daily list)</label><input id="attDate" type="date"></div>
+        <div class="field"><label for="attMonth">Month (register and summary)</label><input id="attMonth" type="month"></div>
       </div>
-      <div id="attSummary" style="margin-top:12px;font-weight:700"></div>
-      <div id="attList" style="margin-top:10px;overflow-x:auto"></div>
+
+      <div id="attHolidayPanel" class="subcard no-print hidden" style="margin-top:12px">
+        <h3>Holidays for this month</h3>
+        <div class="info">
+          Press <strong>Mark holiday</strong> on any school day the school is closed, for example when the government
+          declares a holiday. The gate scanner stops for that day, and the day is left out of attendance counts.
+          Press <strong>Undo holiday</strong> to reopen it.
+        </div>
+        <div class="field" style="margin-top:8px"><label for="attHolReason">Reason (used for the next holiday you mark)</label><input id="attHolReason" type="text" value="Government declaration"></div>
+        <div id="attHolidayList" style="margin-top:10px"></div>
+      </div>
+
+      <div id="attDaily">
+        <div id="attSummary" style="margin-top:12px;font-weight:700"></div>
+        <div id="attList" style="margin-top:10px;overflow-x:auto"></div>
+      </div>
+
+      <div class="row no-print" style="margin-top:12px">
+        <button id="attPrintBtn" class="btn success">Print</button>
+      </div>
+
+      <div id="attPrint">
+        <div id="attRegister" class="hidden" style="overflow-x:auto;margin-top:12px"></div>
+        <div id="attSchool" class="hidden" style="margin-top:12px"></div>
+      </div>
     </section>
 
     <!-- STAFF -->
@@ -1748,6 +1904,138 @@ $("examNextBtn").onclick = () => {
 };
 
 
+/* ================= ASSIGNMENTS (student) ================= */
+let stuAsg = { id: null, questions: [], index: 0 };
+
+async function renderStudentAssignments(){
+  $("stuAsgTake").classList.add("hidden");
+  const box = $("stuAsgList");
+  box.innerHTML = '<div class="empty">Loading…</div>';
+
+  const { data, error } = await supa.rpc("get_open_assignments_for_student", {
+    p_admission_no: studentSession.admissionNo, p_password: studentSession.password
+  });
+  if(error || !data || data.error){
+    box.innerHTML = `<div class="empty">${esc((data && data.error) || (error && error.message) || "Could not load assignments.")}</div>`;
+    return;
+  }
+
+  const list = data.assignments || [];
+  if(list.length === 0){
+    box.innerHTML = '<div class="empty">No assignments are open for your class right now.</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(a => {
+    const closes = a.closes_at ? ` · closes ${new Date(a.closes_at).toLocaleString()}` : "";
+    const action = a.submitted
+      ? `<span><strong>${a.raw_score}/${a.max_score}</strong> submitted</span>`
+      : `<button class="btn primary stu-asg-start" data-id="${a.id}">Start</button>`;
+    return `<div class="student-card">
+      <span><strong>${esc(a.title)}</strong> <span class="tag">${esc(a.subject)}</span>
+        <br><small style="color:var(--muted)">${a.questions_per_student} questions${esc(closes)}</small>
+      </span>${action}
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll(".stu-asg-start").forEach(btn => {
+    btn.onclick = () => startStudentAssignment(Number(btn.dataset.id));
+  });
+}
+
+async function startStudentAssignment(id){
+  const { data, error } = await supa.rpc("start_assignment", {
+    p_admission_no: studentSession.admissionNo, p_password: studentSession.password, p_assignment_id: id
+  });
+  if(error || !data || data.error){
+    toast((data && data.error) || (error && error.message) || "Could not start the assignment.");
+    return;
+  }
+
+  stuAsg = { id, questions: data.questions || [], index: 0 };
+  $("stuAsgList").innerHTML = "";
+  $("stuAsgTake").classList.remove("hidden");
+  $("stuAsgTitle").textContent = data.title;
+  $("stuAsgInstr").textContent = data.instructions || "";
+  $("stuAsgInstr").classList.toggle("hidden", !data.instructions);
+  $("stuAsgMsg").classList.add("hidden");
+
+  const vid = youtubeIdFromUrl(data.video_url);
+  $("stuAsgVideo").innerHTML = vid
+    ? `<iframe width="100%" height="315" src="https://www.youtube-nocookie.com/embed/${vid}" frameborder="0" allowfullscreen></iframe>`
+    : "";
+
+  $("stuAsgQs").innerHTML = stuAsg.questions.map((q, i) => `
+    <div class="panel stu-asg-card" data-i="${i}" style="${i === 0 ? '' : 'display:none'}">
+      <strong>Question ${i + 1} of ${stuAsg.questions.length}</strong>
+      <p>${esc(q.question_text)}</p>
+      <div style="margin-top:8px">
+        <label style="display:block"><input type="radio" name="sa${q.id}" value="a"> ${esc(q.option_a)}</label>
+        <label style="display:block"><input type="radio" name="sa${q.id}" value="b"> ${esc(q.option_b)}</label>
+        <label style="display:block"><input type="radio" name="sa${q.id}" value="c"> ${esc(q.option_c)}</label>
+        <label style="display:block"><input type="radio" name="sa${q.id}" value="d"> ${esc(q.option_d)}</label>
+      </div>
+    </div>`).join("");
+
+  updateStudentAsgNav();
+}
+
+function youtubeIdFromUrl(url){
+  const m = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function updateStudentAsgNav(){
+  document.querySelectorAll("#stuAsgQs .stu-asg-card").forEach(card => {
+    card.style.display = Number(card.dataset.i) === stuAsg.index ? "" : "none";
+  });
+  const total = stuAsg.questions.length;
+  $("stuAsgProgress").textContent = total ? `${stuAsg.index + 1} / ${total}` : "";
+  $("stuAsgPrev").disabled = stuAsg.index === 0;
+  const last = stuAsg.index === total - 1;
+  $("stuAsgNext").classList.toggle("hidden", last);
+  $("stuAsgSubmit").classList.toggle("hidden", !last);
+}
+
+$("stuAsgPrev").onclick = () => { if(stuAsg.index > 0){ stuAsg.index--; updateStudentAsgNav(); } };
+$("stuAsgNext").onclick = () => { if(stuAsg.index < stuAsg.questions.length - 1){ stuAsg.index++; updateStudentAsgNav(); } };
+
+$("stuAsgSubmit").onclick = async () => {
+  const answers = {};
+  document.querySelectorAll("#stuAsgQs input[type=radio]:checked").forEach(input => {
+    answers[input.name.slice(2)] = input.value; // strip the leading "sa"
+  });
+  if(Object.keys(answers).length < stuAsg.questions.length){
+    if(!confirm_free("Some questions are not answered. Submit anyway?")) return;
+  }
+
+  $("stuAsgSubmit").disabled = true;
+  const { data, error } = await supa.rpc("submit_assignment", {
+    p_admission_no: studentSession.admissionNo, p_password: studentSession.password,
+    p_assignment_id: stuAsg.id, p_answers: answers
+  });
+  $("stuAsgSubmit").disabled = false;
+
+  if(error || !data || data.error){
+    toast((data && data.error) || (error && error.message) || "Could not submit.");
+    return;
+  }
+  $("stuAsgMsg").textContent = `Submitted. Your score: ${data.raw_score} / ${data.max_score}.`;
+  $("stuAsgMsg").classList.remove("hidden");
+  $("stuAsgSubmit").classList.add("hidden");
+  $("stuAsgNext").classList.add("hidden");
+  $("stuAsgPrev").classList.add("hidden");
+  $("stuAsgProgress").textContent = "";
+};
+
+// Asks the student before submitting with blanks, without a native dialog
+function confirm_free(text){
+  toast(text + " Tap Submit again to confirm.");
+  if(stuAsg.confirmPending) { stuAsg.confirmPending = false; return true; }
+  stuAsg.confirmPending = true;
+  return false;
+}
+
 /* ================= CBT PRACTICE (student) ================= */
 let cbtTimerInterval = null;
 let cbtCardIndex = 0;
@@ -2040,6 +2328,7 @@ function showStudentView(name){
   document.querySelectorAll(".student-nav-card").forEach(b => {
     b.classList.toggle("active", b.dataset.sview === name);
   });
+  if(name === "assignments") renderStudentAssignments();
   if(name === "cbt"){
     $("cbtStudentTakeBox").classList.add("hidden");
     $("cbtResultBox").classList.add("hidden");
@@ -2338,6 +2627,7 @@ function showView(name){
   if(name === "cards") renderCardsView();
   if(name === "staff") renderStaffView();
   if(name === "attendance") renderAttendanceView();
+  if(name === "assignments") renderAsgAdmin();
   if(name === "helpdesk") renderTickets();
 }
 document.querySelectorAll(".nav-card[data-view]").forEach(b => {
@@ -3928,6 +4218,260 @@ async function renderCbtAttemptsTable(){
   }).join("");
 }
 
+/* ================= VIDEO FINDER (admin) ================= */
+// Suggested channels by subject. Each is a YouTube search, so teachers choose the current video.
+const VIDEO_CHANNELS = {
+  mathematics: [
+    ["Eddie Woo", "Clear, step-by-step school maths.", "Eddie+Woo+maths"],
+    ["PatrickJMT", "Algebra, trigonometry and calculus, one example at a time.", "PatrickJMT"],
+    ["Khan Academy Maths", "Practice problems with hints, arithmetic to advanced.", "Khan+Academy+maths"]
+  ],
+  english: [
+    ["Khan Academy Grammar and Writing", "Grammar, punctuation and essay structure.", "Khan+Academy+grammar"],
+    ["Mr Bruff", "Language analysis and how to write about texts.", "Mr+Bruff+English"]
+  ],
+  literature: [
+    ["Crash Course Literature", "Major works, authors and the ideas behind them.", "Crash+Course+Literature"],
+    ["Mr Bruff Literature", "Character, theme and quotation analysis for set texts.", "Mr+Bruff+literature"]
+  ],
+  physics: [
+    ["Physics Galaxy", "School-level physics explained simply, with worked examples.", "Physics+Galaxy"],
+    ["Veritasium", "Experiments and everyday examples that make ideas stick.", "Veritasium"],
+    ["Khan Academy Physics", "Forces, energy, waves and electricity with practice.", "Khan+Academy+physics"]
+  ],
+  chemistry: [
+    ["Chad's Prep", "Clear, short lessons on core chemistry topics.", "Chads+Prep+chemistry"],
+    ["The Organic Chemistry Tutor", "Chemistry calculations and problem walkthroughs.", "Organic+Chemistry+Tutor+chemistry"]
+  ],
+  biology: [
+    ["Amoeba Sisters", "Illustrated, student-friendly biology topics.", "Amoeba+Sisters"],
+    ["Bozeman Science", "Biology explained calmly and thoroughly, good for revision.", "Bozeman+Science+biology"]
+  ],
+  economics: [
+    ["Crash Course Economics", "Demand, supply, markets and money in short episodes.", "Crash+Course+Economics"],
+    ["Economics Explained", "Economic ideas explained with clear diagrams.", "Economics+Explained"]
+  ],
+  geography: [
+    ["Geography Now", "Countries and regions explored one at a time.", "Geography+Now"],
+    ["Crash Course Geography", "Physical and human geography topics.", "Crash+Course+Geography"]
+  ],
+  history: [
+    ["Crash Course World History", "Major events and their causes across the world.", "Crash+Course+World+History"],
+    ["Crash Course US History", "American history from early settlement to the present.", "Crash+Course+US+History"]
+  ],
+  government: [
+    ["Crash Course Government and Politics", "How governments are organised and how decisions are made.", "Crash+Course+Government+and+Politics"]
+  ],
+  computing: [
+    ["freeCodeCamp", "Programming from the basics, with full courses to follow along.", "freeCodeCamp+programming"],
+    ["CS Dojo", "Core computing ideas explained clearly.", "CS+Dojo"]
+  ],
+  french: [
+    ["Français avec Pierre", "Beginner to intermediate French, spoken and explained.", "Francais+avec+Pierre"],
+    ["Learn French with Alexa", "Everyday French vocabulary and pronunciation.", "Learn+French+with+Alexa"]
+  ],
+  exams: [
+    ["WAEC past questions", "Worked solutions to past WAEC questions, subject by subject.", "WAEC+past+questions+explained"],
+    ["NECO past questions", "Worked solutions to past NECO questions.", "NECO+past+questions+explained"]
+  ]
+};
+
+// Matches a school subject name to a channel group. "Literature" is checked before "English".
+function channelsForSubject(subjectName){
+  const n = String(subjectName || "").toLowerCase();
+  const rules = [
+    ["literature", "literature"], ["math", "mathematics"], ["english", "english"],
+    ["physic", "physics"], ["chem", "chemistry"], ["biolog", "biology"],
+    ["econom", "economics"], ["geograph", "geography"], ["history", "history"],
+    ["government", "government"], ["computer", "computing"], ["french", "french"]
+  ];
+  let key = null;
+  for(const [k, v] of rules){ if(n.includes(k)){ key = v; break; } }
+  const own = key ? (VIDEO_CHANNELS[key] || []) : [];
+  return own.concat(VIDEO_CHANNELS.exams);
+}
+
+function renderVideoFinder(){
+  const subjectSel = $("asgSubject");
+  const subjectName = subjectSel.selectedIndex >= 0 ? subjectSel.options[subjectSel.selectedIndex].text : "";
+  const q = $("vidSearch").value.trim().toLowerCase();
+  const list = channelsForSubject(subjectName).filter(([name, note, search]) =>
+    !q || (name + " " + note).toLowerCase().includes(q));
+
+  $("vidList").innerHTML = list.length
+    ? list.map(([name, note, search]) => `
+        <div class="student-card" style="align-items:flex-start">
+          <span><strong>${esc(name)}</strong><br><small style="color:var(--muted)">${esc(note)}</small></span>
+          <a class="btn secondary" style="text-decoration:none;color:#fff" target="_blank" rel="noopener"
+             href="https://www.youtube.com/results?search_query=${search}">Open search</a>
+        </div>`).join("")
+    : '<div class="empty">No channels match that search.</div>';
+}
+
+$("vidSearch").oninput = renderVideoFinder;
+$("asgSubject").addEventListener("change", renderVideoFinder);
+
+/* ================= ASSIGNMENTS (admin) ================= */
+let asgManageId = null;
+
+// Pulls the video id out of a YouTube link. Returns null if the link is not YouTube.
+function youtubeId(url){
+  const m = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+async function renderAsgAdmin(){
+  $("asgClass").innerHTML = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("asgSubject").innerHTML = cache.subjects.slice().sort((a, b) => a.name.localeCompare(b.name))
+    .map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  renderAsgList();
+  renderVideoFinder();
+}
+
+$("asgCreateBtn").onclick = async () => {
+  const title = $("asgTitle").value.trim();
+  const url = $("asgVideo").value.trim();
+  if(!title){ toast("Enter a title."); return; }
+  if(url && !youtubeId(url)){ toast("That does not look like a YouTube link."); return; }
+
+  const { error } = await supa.from("assignments").insert({
+    class_id: Number($("asgClass").value), subject_id: Number($("asgSubject").value),
+    session: cache.settings.session, term: cache.settings.term, title,
+    video_url: url || null, instructions: $("asgInstr").value.trim() || null,
+    is_open: false,
+    opens_at: $("asgOpens").value ? new Date($("asgOpens").value).toISOString() : null,
+    closes_at: $("asgCloses").value ? new Date($("asgCloses").value).toISOString() : null,
+    questions_per_student: Number($("asgPerStudent").value) || 10
+  });
+  if(error){ toast(error.message); return; }
+  ["asgTitle","asgVideo","asgInstr","asgOpens","asgCloses"].forEach(id => $(id).value = "");
+  toast("Assignment created. Add questions, then open it.");
+  renderAsgList();
+};
+
+async function renderAsgList(){
+  const box = $("asgList");
+  const { data, error } = await supa.from("assignments").select("*").order("created_at", { ascending: false });
+  if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  if(!data || data.length === 0){ box.innerHTML = '<div class="empty">No assignments yet.</div>'; return; }
+
+  box.innerHTML = data.map(a => {
+    const klass = cache.classes.find(c => c.id === Number(a.class_id));
+    const subject = cache.subjects.find(s => s.id === Number(a.subject_id));
+    const st = examStatus(a);
+    return `<div class="student-card" style="align-items:flex-start">
+      <span><strong>${esc(a.title)}</strong> <span class="tag ${st.cls}">${st.label}</span>
+        <br><small style="color:var(--muted)">${esc(a.session)}, ${esc(a.term)} · ${esc(klass ? klass.name : "")} · ${esc(subject ? subject.name : "")} · ${a.questions_per_student} questions per student${a.video_url ? " · has video" : ""}</small>
+      </span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn secondary asg-toggle" data-id="${a.id}" data-open="${a.is_open}">${a.is_open ? "Close" : "Open"}</button>
+        <button class="btn primary asg-manage" data-id="${a.id}">Manage</button>
+        <button class="btn danger asg-del" data-id="${a.id}">Delete</button>
+      </span>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll(".asg-toggle").forEach(btn => {
+    btn.onclick = async () => {
+      const { error: e } = await supa.from("assignments").update({ is_open: btn.dataset.open !== "true" }).eq("id", Number(btn.dataset.id));
+      if(e){ toast(e.message); return; }
+      renderAsgList();
+    };
+  });
+  box.querySelectorAll(".asg-manage").forEach(btn => {
+    btn.onclick = () => openAsgManage(data.find(x => x.id === Number(btn.dataset.id)));
+  });
+  box.querySelectorAll(".asg-del").forEach(btn => {
+    let armed = false;
+    btn.onclick = async () => {
+      if(!armed){
+        armed = true; btn.textContent = "Confirm?";
+        setTimeout(() => { armed = false; btn.textContent = "Delete"; }, 4000);
+        return;
+      }
+      const { error: e } = await supa.from("assignments").delete().eq("id", Number(btn.dataset.id));
+      if(e){ toast(e.message); return; }
+      if(asgManageId === Number(btn.dataset.id)) show($("asgManagePanel"), false);
+      toast("Assignment deleted.");
+      renderAsgList();
+    };
+  });
+}
+
+async function openAsgManage(a){
+  asgManageId = a.id;
+  show($("asgManagePanel"), true);
+  const klass = cache.classes.find(c => c.id === Number(a.class_id));
+  const subject = cache.subjects.find(s => s.id === Number(a.subject_id));
+  $("asgManageTitle").textContent = `Managing: ${a.title} — ${klass ? klass.name : ""} / ${subject ? subject.name : ""}`;
+  const id = youtubeId(a.video_url);
+  $("asgVideoPreview").innerHTML = id
+    ? `<iframe width="100%" height="315" src="https://www.youtube-nocookie.com/embed/${id}" frameborder="0" allowfullscreen></iframe>`
+    : '<div class="empty">No video link on this assignment.</div>';
+  $("asgManagePanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  await Promise.all([renderAsgQuestions(), renderAsgSubmissions()]);
+}
+
+async function renderAsgQuestions(){
+  const { data } = await supa.from("assignment_questions").select("*").eq("assignment_id", asgManageId).order("id");
+  const rows = data || [];
+  $("asgQCount").textContent = rows.length;
+  $("asgQTable").querySelector("tbody").innerHTML = rows.map((q, i) =>
+    `<tr><td>${i + 1}</td><td style="text-align:left">${esc(q.question_text)}</td><td>${esc(q.correct_option.toUpperCase())}</td><td>${q.marks}</td></tr>`
+  ).join("") || '<tr><td colspan="4" class="empty">No questions yet.</td></tr>';
+}
+
+$("asgAddQBtn").onclick = async () => {
+  const text = $("asgQText").value.trim();
+  const a = $("asgQA").value.trim(), b = $("asgQB").value.trim(), c = $("asgQC").value.trim(), d = $("asgQD").value.trim();
+  if(!asgManageId){ toast("Open an assignment with Manage first."); return; }
+  if(!text || !a || !b || !c || !d){ toast("Fill in the question and all four options."); return; }
+  const { error } = await supa.from("assignment_questions").insert({
+    assignment_id: asgManageId, question_text: text,
+    option_a: a, option_b: b, option_c: c, option_d: d,
+    correct_option: $("asgQCorrect").value, marks: Number($("asgQMarks").value) || 1
+  });
+  if(error){ toast(error.message); return; }
+  ["asgQText","asgQA","asgQB","asgQC","asgQD"].forEach(id => $(id).value = "");
+  $("asgQMarks").value = 1;
+  toast("Question added.");
+  renderAsgQuestions();
+};
+
+$("asgBulkBtn").onclick = async () => {
+  show($("asgBulkError"), false);
+  if(!asgManageId){ toast("Open an assignment with Manage first."); return; }
+  const text = $("asgBulkText").value;
+  if(!text.trim()){ toast("Paste some questions first."); return; }
+
+  const { parsed, errors } = parseBulkQuestions(text);
+  if(errors.length){
+    $("asgBulkError").innerHTML = `Found ${errors.length} problem(s), nothing was imported yet:<br>` + errors.map(esc).join("<br>");
+    show($("asgBulkError"), true);
+    return;
+  }
+  if(parsed.length === 0){ toast("No valid questions found in that text."); return; }
+
+  const rows = parsed.map(q => ({ ...q, assignment_id: asgManageId }));
+  const { error } = await supa.from("assignment_questions").insert(rows);
+  if(error){ toast(error.message); return; }
+  $("asgBulkText").value = "";
+  toast(`Imported ${parsed.length} question(s).`);
+  renderAsgQuestions();
+};
+
+async function renderAsgSubmissions(){
+  const { data } = await supa.from("assignment_submissions").select("student_id,raw_score,max_score,submitted_at")
+    .eq("assignment_id", asgManageId).not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false });
+  const tbody = $("asgSubTable").querySelector("tbody");
+  if(!data || data.length === 0){ tbody.innerHTML = '<tr><td colspan="3" class="empty">No submissions yet.</td></tr>'; return; }
+  tbody.innerHTML = data.map(r => {
+    const st = cache.students.find(x => x.id === Number(r.student_id));
+    return `<tr><td>${esc(st ? st.full_name : "Unknown")}</td><td>${r.raw_score}/${r.max_score}</td><td>${esc(new Date(r.submitted_at).toLocaleString())}</td></tr>`;
+  }).join("");
+}
+
 /* ================= ATTENDANCE (admin) ================= */
 // Today's date in Nigeria (UTC+1, no daylight saving)
 function todayLagos(){
@@ -3940,7 +4484,8 @@ async function renderAttendanceView(){
   sel.innerHTML = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   if(previous && cache.classes.some(c => String(c.id) === previous)) sel.value = previous;
   if(!$("attDate").value) $("attDate").value = todayLagos();
-  drawAttendance();
+  if(!$("attMonth").value) $("attMonth").value = todayLagos().slice(0, 7);
+  setAttTab(attTab);
 }
 
 async function drawAttendance(){
@@ -3995,8 +4540,229 @@ async function drawAttendance(){
     </table>`;
 }
 
-$("attClassSelect").onchange = drawAttendance;
-$("attDate").onchange = drawAttendance;
+let attTab = "daily";
+
+function setAttTab(name){
+  attTab = name;
+  show($("attDaily"), name === "daily");
+  show($("attRegister"), name === "register");
+  show($("attSchool"), name === "school");
+  show($("attHolidayPanel"), name !== "daily");
+  $("attTabDaily").className = name === "daily" ? "btn primary" : "btn secondary";
+  $("attTabRegister").className = name === "register" ? "btn primary" : "btn secondary";
+  $("attTabSchool").className = name === "school" ? "btn primary" : "btn secondary";
+  refreshAttendance();
+}
+
+function refreshAttendance(){
+  if(attTab === "daily") drawAttendance();
+  else if(attTab === "register") renderRegister();
+  else renderSchool();
+}
+
+// Days of a month (YYYY-MM) that are school days: Monday to Friday
+function attMonthRange(ym){
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const days = [];
+  for(let d = 1; d <= last; d++){
+    const wd = new Date(y, m - 1, d).getDay();
+    if(wd >= 1 && wd <= 5) days.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+  const monthLabel = new Date(y, m - 1, 1).toLocaleString("en-GB", { month: "long", year: "numeric" });
+  return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, "0")}`, days, monthLabel };
+}
+
+// Returns a Set of "studentId|date" for every mark in the range, or null if the query failed
+async function loadAttMarks(range, ids){
+  if(!ids.length) return new Set();
+  const { data, error } = await supa.from("attendance").select("student_id,attendance_date")
+    .gte("attendance_date", range.from).lte("attendance_date", range.to).in("student_id", ids);
+  if(error){ toast(error.message); return null; }
+  return new Set((data || []).map(a => Number(a.student_id) + "|" + a.attendance_date));
+}
+
+function schoolName(){ return (cache.settings && cache.settings.school_name) || "OLUVOLT ACATECH SCHOOL"; }
+
+// Holidays in the range, as a Map of date -> reason
+async function loadHolidays(range){
+  const { data, error } = await supa.from("school_holidays").select("holiday_date,reason")
+    .gte("holiday_date", range.from).lte("holiday_date", range.to);
+  if(error){ toast(error.message); return null; }
+  const m = new Map();
+  (data || []).forEach(h => m.set(h.holiday_date, h.reason));
+  return m;
+}
+
+async function renderHolidayPanel(range){
+  const hol = await loadHolidays(range);
+  if(!hol) return;
+  $("attHolidayList").innerHTML = range.days.map(d => {
+    const reason = hol.get(d);
+    return `<div class="student-card" style="align-items:center">
+      <span><strong>${esc(d)}</strong> ${reason
+        ? `<span class="tag demo">HOLIDAY</span> <small>${esc(reason)}</small>`
+        : '<small style="color:var(--muted)">School day</small>'}</span>
+      <button class="btn ${reason ? "secondary" : "gold"} att-hol-btn" data-d="${d}" data-on="${reason ? "1" : "0"}">${reason ? "Undo holiday" : "Mark holiday"}</button>
+    </div>`;
+  }).join("");
+
+  $("attHolidayList").querySelectorAll(".att-hol-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const d = btn.dataset.d;
+      let error;
+      if(btn.dataset.on === "1"){
+        ({ error } = await supa.from("school_holidays").delete().eq("holiday_date", d));
+      }else{
+        const reason = $("attHolReason").value.trim() || "Holiday";
+        ({ error } = await supa.from("school_holidays").insert({ holiday_date: d, reason }));
+      }
+      if(error){ toast(error.message); return; }
+      toast(btn.dataset.on === "1" ? "Holiday removed. The gate is open for that day." : "Holiday marked. The gate is closed for that day.");
+      refreshAttendance();
+    };
+  });
+}
+
+async function renderRegister(){
+  const out = $("attRegister");
+  const classId = Number($("attClassSelect").value);
+  const ym = $("attMonth").value;
+  if(!classId || !ym){ out.innerHTML = '<div class="empty">Choose a class and a month.</div>'; return; }
+
+  const klass = cache.classes.find(c => c.id === classId);
+  const range = attMonthRange(ym);
+  const today = todayLagos();
+  const students = cache.students.filter(s => s.class_id === classId)
+    .sort((x, y) => x.full_name.localeCompare(y.full_name));
+  if(students.length === 0){ out.innerHTML = '<div class="empty">No students in this class.</div>'; return; }
+
+  const hol = await loadHolidays(range);
+  if(!hol) return;
+  const marks = await loadAttMarks(range, students.map(s => s.id));
+  if(!marks) return;
+
+  // Days that count: already happened, and not a holiday
+  const counted = range.days.filter(d => d <= today && !hol.has(d));
+  const holidayCount = range.days.filter(d => hol.has(d)).length;
+  const dayCount = {};
+  counted.forEach(d => { dayCount[d] = 0; });
+  let totalPresent = 0;
+
+  const rows = students.map(st => {
+    let present = 0;
+    const cells = range.days.map(d => {
+      if(hol.has(d)) return '<td class="att-H" title="' + esc(hol.get(d)) + '">H</td>';
+      if(d > today) return '<td class="att-future"></td>';
+      const p = marks.has(st.id + "|" + d);
+      if(p){ present++; dayCount[d]++; }
+      return p ? '<td class="att-P">P</td>' : '<td class="att-A">A</td>';
+    }).join("");
+    totalPresent += present;
+    const pct = counted.length ? (present / counted.length * 100) : 0;
+    return `<tr><td class="name">${esc(st.full_name)}</td><td>${esc(st.admission_no || "")}</td>${cells}
+      <td><strong>${present}</strong></td><td>${counted.length}</td><td><strong>${pct.toFixed(0)}%</strong></td></tr>`;
+  }).join("");
+
+  const dayHead = range.days.map(d => `<th class="${d > today && !hol.has(d) ? "att-future" : ""}">${Number(d.slice(8))}</th>`).join("");
+  const dayTotals = range.days.map(d => hol.has(d) ? '<td class="att-H">H</td>'
+    : d > today ? '<td class="att-future"></td>' : `<td>${dayCount[d]}</td>`).join("");
+  const dayPct = range.days.map(d => hol.has(d) ? '<td class="att-H">H</td>'
+    : d > today ? '<td class="att-future"></td>'
+    : `<td>${students.length ? (dayCount[d] / students.length * 100).toFixed(0) + "%" : "—"}</td>`).join("");
+  const classAvg = counted.length && students.length
+    ? (totalPresent / (students.length * counted.length) * 100).toFixed(1) + "%" : "—";
+
+  out.innerHTML = `
+    <div class="att-head">
+      <div style="font-weight:700;font-size:16px">${esc(schoolName())}</div>
+      <div style="font-weight:700">Attendance Register · ${esc(klass ? klass.name : "")} · ${esc(range.monthLabel)}</div>
+      <div style="color:#6b7785;font-size:12px">${counted.length} school days counted · ${holidayCount} holiday(s) excluded (H) · Monday to Friday</div>
+    </div>
+    <table class="att-table">
+      <thead><tr><th class="name">Student</th><th>ID</th>${dayHead}<th>Present</th><th>Of</th><th>%</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr><td class="name"><strong>Present per day</strong></td><td></td>${dayTotals}<td colspan="3"></td></tr>
+        <tr><td class="name"><strong>% per day</strong></td><td></td>${dayPct}<td colspan="3"></td></tr>
+      </tfoot>
+    </table>
+    <div style="margin-top:10px;font-weight:700">Class average for the month: ${classAvg}</div>`;
+
+  renderHolidayPanel(range);
+}
+
+async function renderSchool(){
+  const out = $("attSchool");
+  const ym = $("attMonth").value;
+  if(!ym){ out.innerHTML = '<div class="empty">Choose a month.</div>'; return; }
+
+  const range = attMonthRange(ym);
+  const today = todayLagos();
+  const all = cache.students;
+  const hol = await loadHolidays(range);
+  if(!hol) return;
+  const marks = await loadAttMarks(range, all.map(s => s.id));
+  if(!marks) return;
+
+  const counted = range.days.filter(d => d <= today && !hol.has(d));
+  const holidayCount = range.days.filter(d => hol.has(d)).length;
+
+  const classRows = cache.classes.map(k => {
+    const list = all.filter(s => s.class_id === k.id);
+    let present = 0;
+    list.forEach(st => counted.forEach(d => { if(marks.has(st.id + "|" + d)) present++; }));
+    const possible = list.length * counted.length;
+    return { name: k.name, students: list.length, present, possible, pct: possible ? present / possible * 100 : null };
+  }).filter(r => r.students > 0);
+
+  const schoolPresent = classRows.reduce((t, r) => t + r.present, 0);
+  const schoolPossible = classRows.reduce((t, r) => t + r.possible, 0);
+  const schoolPct = schoolPossible ? (schoolPresent / schoolPossible * 100).toFixed(1) + "%" : "—";
+
+  const daily = range.days.filter(d => d <= today).map(d => {
+    if(hol.has(d)) return { d, holiday: hol.get(d) };
+    let p = 0;
+    all.forEach(st => { if(marks.has(st.id + "|" + d)) p++; });
+    return { d, p, n: all.length, pct: all.length ? p / all.length * 100 : 0 };
+  });
+
+  out.innerHTML = `
+    <div class="att-head">
+      <div style="font-weight:700;font-size:16px">${esc(schoolName())}</div>
+      <div style="font-weight:700">School Attendance Summary · ${esc(range.monthLabel)}</div>
+      <div style="color:#6b7785;font-size:12px">${counted.length} school days counted · ${holidayCount} holiday(s) excluded · Monday to Friday</div>
+    </div>
+
+    <h4 style="margin:12px 0 6px">By class</h4>
+    <table class="att-table">
+      <thead><tr><th class="name">Class</th><th>Students</th><th>Days</th><th>Present</th><th>Possible</th><th>Average</th></tr></thead>
+      <tbody>${classRows.map(r => `<tr>
+        <td class="name">${esc(r.name)}</td><td>${r.students}</td><td>${counted.length}</td>
+        <td>${r.present}</td><td>${r.possible}</td>
+        <td><strong>${r.pct === null ? "—" : r.pct.toFixed(1) + "%"}</strong></td></tr>`).join("")}</tbody>
+      <tfoot><tr><td class="name"><strong>Whole school</strong></td><td>${all.length}</td><td>${counted.length}</td>
+        <td>${schoolPresent}</td><td>${schoolPossible}</td><td><strong>${schoolPct}</strong></td></tr></tfoot>
+    </table>
+
+    <h4 style="margin:16px 0 6px">Day by day, whole school</h4>
+    <table class="att-table">
+      <thead><tr><th class="name">Date</th><th>Present</th><th>Students</th><th>%</th></tr></thead>
+      <tbody>${daily.map(x => x.holiday
+        ? `<tr><td class="name">${esc(x.d)}</td><td colspan="3" class="att-H">Holiday: ${esc(x.holiday)}</td></tr>`
+        : `<tr><td class="name">${esc(x.d)}</td><td>${x.p}</td><td>${x.n}</td><td>${x.pct.toFixed(0)}%</td></tr>`).join("")}</tbody>
+    </table>`;
+
+  renderHolidayPanel(range);
+}
+
+$("attClassSelect").onchange = refreshAttendance;
+$("attDate").onchange = refreshAttendance;
+$("attMonth").onchange = refreshAttendance;
+$("attTabDaily").onclick = () => setAttTab("daily");
+$("attTabRegister").onclick = () => setAttTab("register");
+$("attTabSchool").onclick = () => setAttTab("school");
+$("attPrintBtn").onclick = () => window.print();
 
 /* ================= STAFF (admin) ================= */
 async function renderStaffView(){
