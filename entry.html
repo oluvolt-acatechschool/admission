@@ -29,6 +29,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .big{font-size:20px;font-weight:700;margin:0 0 4px}
 .row{display:flex;gap:10px;flex-wrap:wrap}
 .row button{flex:1}
+.big-feedback{display:none;text-align:center;border-radius:14px;padding:18px 12px;margin-top:14px;animation:pop .25s ease-out}
+.big-feedback .icon{font-size:96px;line-height:1.1}
+.big-feedback .name{font-size:26px;font-weight:700;margin:6px 0 2px}
+.big-feedback .detail{font-size:18px}
+.big-feedback.ok{background:#1e7b4a;color:#fff}
+.big-feedback.info{background:#0b3d6e;color:#fff}
+.big-feedback.bad{background:#a4262c;color:#fff}
+@keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
 </style>
 </head>
 <body>
@@ -61,6 +69,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <div class="scan-hint">Hold a student's card in front of the camera. Each card is recorded once per day.</div>
 
     <div id="result" class="msg info hidden"></div>
+    <div id="bigFeedback" class="big-feedback"></div>
 
     <div class="row" style="margin-top:14px">
       <button id="signOutBtn" class="ghost">Sign out</button>
@@ -77,6 +86,34 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function show(el, on){ el.classList.toggle("hidden", !on); }
 function note(el, text, kind){ el.textContent = text; el.className = "msg " + kind; show(el, true); }
+
+// Large, unmissable result for each scan. Stays for 8 seconds, or until the next scan.
+let feedbackTimer = null;
+function showFeedback(kind, icon, name, detail){
+  const el = $("bigFeedback");
+  el.className = "big-feedback " + kind;
+  el.innerHTML = `<div class="icon">${icon}</div><div class="name">${esc(name)}</div><div class="detail">${esc(detail)}</div>`;
+  el.style.display = "block";
+  el.style.animation = "none";
+  void el.offsetWidth;
+  el.style.animation = "";
+  clearTimeout(feedbackTimer);
+  feedbackTimer = setTimeout(() => { el.style.display = "none"; }, 8000);
+  beep(kind === "ok" ? 880 : kind === "info" ? 660 : 220);
+}
+
+// Short tone: high for recorded, lower for already marked, lowest for a problem
+function beep(freq){
+  try{
+    const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    gain.gain.value = 0.15;
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.25);
+  }catch(e){ /* no sound available: the visual result still shows */ }
+}
 
 // The staff member's sign-in is kept only in this page's memory, never saved to the device.
 let staff = null;          // { username, pin, full_name }
@@ -205,7 +242,7 @@ function scanFrame(){
 
 async function handleCode(data){
   if(!data.startsWith("OLAS:")){
-    note($("result"), "That is not a school card.", "bad");
+    showFeedback("bad", "✖", "Not a school card", "Scan a student's card.");
     return;
   }
   busy = true;
@@ -215,14 +252,14 @@ async function handleCode(data){
   busy = false;
 
   if(error || !res || res.error){
-    note($("result"), (res && res.error) || (error && error.message) || "The card could not be recorded.", "bad");
+    showFeedback("bad", "✖", "Not recorded", (res && res.error) || (error && error.message) || "The card could not be recorded.");
     return;
   }
   const time = new Date(res.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   if(res.status === "marked"){
-    note($("result"), `✔ Marked present: ${res.student} (${res.class || ""}) at ${time}`, "ok");
+    showFeedback("ok", "✅", res.student, `Marked present · ${res.class || ""} · ${time}`);
   }else{
-    note($("result"), `Already marked today: ${res.student} (${res.class || ""}), first at ${time}`, "info");
+    showFeedback("info", "ℹ️", res.student, `Already marked today · ${res.class || ""} · first at ${time}`);
   }
 }
 
