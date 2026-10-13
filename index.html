@@ -194,8 +194,80 @@ h2,h3{color:var(--nav);margin-top:0}
     <!-- TEACHER PLACEHOLDER (revealed via secret menu) -->
     <section id="teacherPlaceholder" class="panel hidden">
       <h2>Teacher Portal</h2>
-      <div class="info">Teacher accounts aren't set up yet — this is reserved for a future update (gradebook, attendance, lesson notes).</div>
-      <button id="backFromTeacherBtn" class="btn secondary">← Back</button>
+
+      <div id="tLoginCard">
+        <div class="info">Sign in with the username and PIN the school admin gave you.</div>
+        <label for="tUsername">Username</label>
+        <input id="tUsername" type="text" autocomplete="username" autocapitalize="none" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
+        <label for="tPin" style="display:block;margin-top:10px">PIN</label>
+        <input id="tPin" type="password" autocomplete="current-password" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
+        <button id="tLoginBtn" class="btn primary" style="margin-top:12px">Sign in</button>
+        <div id="tLoginMsg" class="hidden" style="margin-top:10px;padding:10px;border-radius:6px"></div>
+      </div>
+
+      <div id="tHomeCard" class="hidden">
+        <h3 id="tWelcome"></h3>
+        <div id="tAssignList"></div>
+        <button id="tAsgOpenBtn" class="btn primary" style="margin-top:12px">Assignments</button>
+        <button id="tLogoutBtn" class="btn secondary" style="margin-top:12px">Sign out</button>
+      </div>
+
+      <div id="tAsgCard" class="hidden">
+        <h3>Assignments for your classes</h3>
+        <div class="info">Create an assignment for one of your classes, add the questions, and open it for students. Students watch the video, if you add one, and answer the questions.</div>
+        <div id="tAsgList" style="margin-top:10px"></div>
+
+        <div style="border:1px solid #d9dee5;border-radius:8px;padding:12px;margin-top:12px">
+          <strong>New assignment</strong>
+          <label for="tAsgPair" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Class and subject</label>
+          <select id="tAsgPair" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit"></select>
+          <label for="tAsgTitle" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Title</label>
+          <input id="tAsgTitle" type="text" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
+          <label for="tAsgVideo" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">YouTube link (optional)</label>
+          <input id="tAsgVideo" type="url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
+          <label for="tAsgPer" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Questions per student</label>
+          <input id="tAsgPer" type="number" min="1" value="10" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
+          <button id="tAsgCreateBtn" class="btn primary" style="margin-top:10px">Create assignment</button>
+        </div>
+        <button id="tAsgBack" class="btn secondary" style="margin-top:12px">Back to classes</button>
+        <div id="tAsgMsg" class="hidden" style="margin-top:10px;padding:10px;border-radius:6px"></div>
+      </div>
+
+      <div id="tAsgManage" class="hidden">
+        <h3 id="tAsgManageTitle"></h3>
+        <div id="tAsgVideo2" style="margin:8px 0"></div>
+        <div id="tAsgStatus" style="font-weight:700;margin-bottom:8px"></div>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="tAsgToggle" class="btn primary">Open</button>
+          <button id="tAsgDelete" class="btn danger">Delete</button>
+          <button id="tAsgManageBack" class="btn secondary">Back to assignments</button>
+        </div>
+        <h4 style="margin-top:14px">Questions (<span id="tAsgQCount">0</span>)</h4>
+        <div style="overflow-x:auto"><table class="data"><thead><tr><th>#</th><th style="text-align:left">Question</th><th>Answer</th><th>Marks</th></tr></thead><tbody id="tAsgQRows"></tbody></table></div>
+        <h4 style="margin-top:14px">Add questions</h4>
+        <div class="info">Same format as the admin page: <code>Q:</code>, <code>A:</code>, <code>B:</code>, <code>C:</code>, <code>D:</code>, <code>ANSWER:</code>, and <code>---</code> between questions.</div>
+        <textarea id="tAsgBulk" rows="8" style="width:100%;padding:10px;border:1px solid #bfc6cc;border-radius:6px;font-family:monospace;font-size:13px"></textarea>
+        <button id="tAsgAddQ" class="btn primary" style="margin-top:8px">Add questions</button>
+        <h4 style="margin-top:14px">Scores</h4>
+        <div style="overflow-x:auto"><table class="data"><thead><tr><th style="text-align:left">Student</th><th>Score</th><th>Submitted</th></tr></thead><tbody id="tAsgScoreRows"></tbody></table></div>
+        <div id="tAsgManageMsg" class="hidden" style="margin-top:10px;padding:10px;border-radius:6px"></div>
+      </div>
+
+      <div id="tGradeCard" class="hidden">
+        <h3 id="tGradeTitle"></h3>
+        <div class="info">CA is out of 40. Exam is out of 60. Leave a row blank to skip that student.</div>
+        <div style="overflow-x:auto;margin-top:10px">
+          <table class="data">
+            <thead><tr><th>Student</th><th>ID</th><th>CA /40</th><th>Exam /60</th><th>Total</th></tr></thead>
+            <tbody id="tGradeRows"></tbody>
+          </table>
+        </div>
+        <button id="tSaveBtn" class="btn success" style="margin-top:12px">Save scores</button>
+        <button id="tBackBtn" class="btn secondary" style="margin-top:12px">Back to classes</button>
+        <div id="tGradeMsg" class="hidden" style="margin-top:10px;padding:10px;border-radius:6px"></div>
+      </div>
+
+      <button id="backFromTeacherBtn" class="btn secondary" style="margin-top:14px">← Back</button>
     </section>
 
     <!-- STUDENT LOGIN -->
@@ -1271,6 +1343,21 @@ h2,h3{color:var(--nav);margin-top:0}
       </div>
 
       <div class="subcard" style="margin-top:16px">
+        <h3>Teaching Assignments</h3>
+        <div class="info">
+          Assign each teacher to the classes and subjects they teach. A teacher signs in on the teacher page
+          with their staff username and PIN, and can enter scores only for their own assignments.
+        </div>
+        <div class="formgrid" style="margin-top:10px">
+          <div class="field"><label for="taStaff">Teacher</label><select id="taStaff"></select></div>
+          <div class="field"><label for="taClass">Class</label><select id="taClass"></select></div>
+          <div class="field"><label for="taSubject">Subject</label><select id="taSubject"></select></div>
+        </div>
+        <button id="taAddBtn" class="btn primary" style="margin-top:8px">Add Assignment</button>
+        <div id="taList" style="margin-top:12px"></div>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
         <h3>Gate Duty Rotation</h3>
         <div class="info">
           Pick up to 5 active staff for gate duty. The duty passes to the next person in this order each day,
@@ -1413,8 +1500,6 @@ h2,h3{color:var(--nav);margin-top:0}
 
   </section>
 </div>
-
-<div class="footer">OLUVOLT ACATECH SCHOOL © 2026</div>
 
 <script>
 "use strict";
@@ -5192,9 +5277,65 @@ $("attDate").onchange = refreshAttendance;
 $("attMonth").onchange = refreshAttendance;
 $("attPrintBtn").onclick = () => window.print();
 
+/* ================= TEACHING ASSIGNMENTS (admin) ================= */
+async function renderTeaching(){
+  const [staffRes, asgRes] = await Promise.all([
+    supa.from("staff").select("id,full_name").order("full_name"),
+    supa.from("teacher_assignments").select("id,staff_id,class_id,subject_id")
+  ]);
+  const staffList = staffRes.data || [];
+  const staffOpts = staffList.map(x => `<option value="${x.id}">${esc(x.full_name)}</option>`).join("");
+  $("taStaff").innerHTML = staffOpts;
+  $("taClass").innerHTML = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("taSubject").innerHTML = cache.subjects.slice().sort((a, b) => a.name.localeCompare(b.name))
+    .map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+
+  const box = $("taList");
+  if(asgRes.error){ box.innerHTML = `<div class="empty">${esc(asgRes.error.message)}</div>`; return; }
+  const rows = asgRes.data || [];
+  if(rows.length === 0){ box.innerHTML = '<div class="empty">No teaching assignments yet.</div>'; return; }
+
+  box.innerHTML = rows.map(a => {
+    const st = staffList.find(x => x.id === Number(a.staff_id));
+    const k = cache.classes.find(c => c.id === Number(a.class_id));
+    const sub = cache.subjects.find(x => x.id === Number(a.subject_id));
+    return `<div class="student-card">
+      <span><strong>${esc(st ? st.full_name : "Unknown")}</strong>
+        <br><small style="color:var(--muted)">${esc(k ? k.name : "")} · ${esc(sub ? sub.name : "")}</small></span>
+      <button class="btn danger ta-del" data-id="${a.id}">Remove</button>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll(".ta-del").forEach(btn => {
+    let armed = false;
+    btn.onclick = async () => {
+      if(!armed){
+        armed = true; btn.textContent = "Confirm?";
+        setTimeout(() => { armed = false; btn.textContent = "Remove"; }, 4000);
+        return;
+      }
+      const { error } = await supa.from("teacher_assignments").delete().eq("id", Number(btn.dataset.id));
+      if(error){ toast(error.message); return; }
+      renderTeaching();
+    };
+  });
+}
+
+$("taAddBtn").onclick = async () => {
+  const { error } = await supa.from("teacher_assignments").insert({
+    staff_id: Number($("taStaff").value), class_id: Number($("taClass").value), subject_id: Number($("taSubject").value)
+  });
+  if(error){
+    toast(error.message.includes("duplicate") ? "That teacher is already assigned to this class and subject." : error.message);
+    return;
+  }
+  toast("Assignment added.");
+  renderTeaching();
+};
+
 /* ================= STAFF (admin) ================= */
 async function renderStaffView(){
-  await Promise.all([renderStaffList(), renderGateDuty()]);
+  await Promise.all([renderStaffList(), renderGateDuty(), renderTeaching()]);
 }
 
 async function renderStaffList(){
@@ -5628,6 +5769,8 @@ async function loadPublicInfo(){
       if(data.school_name) $("footerSchoolName").textContent = data.school_name;
 
 
+
+
       if(data.about_enabled !== false){
         $("footerVision").textContent = data.vision || "Not added yet.";
         $("footerMission").textContent = data.mission || "Not added yet.";
@@ -5696,6 +5839,289 @@ async function loadNoticeBoard(){
   }
 }
 loadPublicInfo();
+
+/* ================= TEACHER PORTAL ================= */
+let tAssignments = [];   // the teacher's class and subject pairs
+let tManaged = null;     // the assignment being managed
+
+function tBanner(el, text, ok){
+  el.textContent = text;
+  el.style.background = ok ? "#e8f5ee" : "#fbeaea";
+  el.style.color = ok ? "#1e7b4a" : "#a4262c";
+  show(el, true);
+}
+
+$("tAsgOpenBtn").onclick = async () => {
+  show($("tHomeCard"), false);
+  show($("tAsgCard"), true);
+  show($("tAsgManage"), false);
+  // Class and subject choices come from the teacher's own assignments only
+  $("tAsgPair").innerHTML = tAssignments.map((a, i) => `<option value="${i}">${esc(a.class)} · ${esc(a.subject)}</option>`).join("");
+  await tLoadAsgList();
+};
+
+$("tAsgBack").onclick = () => {
+  show($("tAsgCard"), false);
+  show($("tHomeCard"), true);
+};
+
+async function tLoadAsgList(){
+  const { data, error } = await supa.rpc("teacher_asg_list", { p_username: tTeacher.username, p_pin: tTeacher.pin });
+  if(error || !data || data.error){
+    tBanner($("tAsgMsg"), (data && data.error) || (error && error.message) || "Could not load assignments.", false);
+    return;
+  }
+  const list = data.assignments || [];
+  $("tAsgList").innerHTML = list.length ? list.map(a => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #d9dee5;border-radius:8px;padding:10px;margin-bottom:8px;flex-wrap:wrap">
+      <span><strong>${esc(a.title)}</strong><br><small style="color:#6b7785">${esc(a.class)} · ${esc(a.subject)} · ${a.question_count} question(s) · ${a.submissions} submitted · ${a.is_open ? "OPEN" : "CLOSED"}</small></span>
+      <button class="btn primary t-asg-manage" data-id="${a.id}">Manage</button>
+    </div>`).join("")
+    : '<div style="color:#6b7785">No assignments yet for your classes.</div>';
+  $("tAsgList").querySelectorAll(".t-asg-manage").forEach(btn => {
+    btn.onclick = () => tOpenManage(list.find(x => x.id === Number(btn.dataset.id)));
+  });
+}
+
+$("tAsgCreateBtn").onclick = async () => {
+  const pair = tAssignments[Number($("tAsgPair").value)];
+  const title = $("tAsgTitle").value.trim();
+  const video = $("tAsgVideo").value.trim();
+  if(!pair){ tBanner($("tAsgMsg"), "Choose a class and subject.", false); return; }
+  if(!title){ tBanner($("tAsgMsg"), "Enter a title.", false); return; }
+  if(video && !youtubeId(video)){ tBanner($("tAsgMsg"), "That does not look like a YouTube link.", false); return; }
+
+  const { data, error } = await supa.rpc("teacher_asg_create", {
+    p_username: tTeacher.username, p_pin: tTeacher.pin,
+    p_class: pair.class_id, p_subject: pair.subject_id, p_title: title, p_video: video || null,
+    p_instructions: null, p_opens: null, p_closes: null, p_per: Number($("tAsgPer").value) || 10
+  });
+  if(error || !data || data.error){
+    tBanner($("tAsgMsg"), (data && data.error) || (error && error.message) || "Could not create the assignment.", false);
+    return;
+  }
+  $("tAsgTitle").value = ""; $("tAsgVideo").value = "";
+  tBanner($("tAsgMsg"), "Assignment created. Add questions, then open it for students.", true);
+  await tLoadAsgList();
+};
+
+async function tOpenManage(a){
+  tManaged = a;
+  show($("tAsgCard"), false);
+  show($("tAsgManage"), true);
+  $("tAsgManageTitle").textContent = `${a.title} · ${a.class} · ${a.subject}`;
+  const vid = youtubeId(a.video_url);
+  $("tAsgVideo2").innerHTML = vid
+    ? `<iframe width="100%" height="260" src="https://www.youtube-nocookie.com/embed/${vid}" frameborder="0" allowfullscreen></iframe>`
+    : '<div style="color:#6b7785">No video on this assignment.</div>';
+  tRefreshManage();
+}
+
+async function tRefreshManage(){
+  const a = tManaged;
+  show($("tAsgManageMsg"), false);
+  $("tAsgStatus").textContent = a.is_open ? "Status: OPEN for students" : "Status: CLOSED (students cannot see it)";
+  $("tAsgToggle").textContent = a.is_open ? "Close" : "Open";
+
+  const [qRes, sRes] = await Promise.all([
+    supa.rpc("teacher_asg_questions", { p_username: tTeacher.username, p_pin: tTeacher.pin, p_assignment: a.id }),
+    supa.rpc("teacher_asg_scores", { p_username: tTeacher.username, p_pin: tTeacher.pin, p_assignment: a.id })
+  ]);
+  const qs = (qRes.data && qRes.data.questions) || [];
+  $("tAsgQCount").textContent = qs.length;
+  $("tAsgQRows").innerHTML = qs.map((q, i) =>
+    `<tr><td>${i + 1}</td><td style="text-align:left">${esc(q.question_text)}</td><td>${esc(q.correct_option.toUpperCase())}</td><td>${q.marks}</td></tr>`
+  ).join("") || '<tr><td colspan="4" style="color:#6b7785">No questions yet.</td></tr>';
+
+  const sc = (sRes.data && sRes.data.scores) || [];
+  $("tAsgScoreRows").innerHTML = sc.map(x =>
+    `<tr><td style="text-align:left">${esc(x.student)}</td><td>${x.raw}/${x.max}</td><td>${esc(new Date(x.submitted_at).toLocaleString())}</td></tr>`
+  ).join("") || '<tr><td colspan="3" style="color:#6b7785">No submissions yet.</td></tr>';
+}
+
+$("tAsgToggle").onclick = async () => {
+  const { data, error } = await supa.rpc("teacher_asg_set_open", {
+    p_username: tTeacher.username, p_pin: tTeacher.pin, p_assignment: tManaged.id, p_open: !tManaged.is_open
+  });
+  if(error || !data || data.error){ tBanner($("tAsgManageMsg"), (data && data.error) || (error && error.message) || "Could not change the status.", false); show($("tAsgManageMsg"), true); return; }
+  tManaged.is_open = !tManaged.is_open;
+  tRefreshManage();
+};
+
+let tDeleteArmed = false;
+$("tAsgDelete").onclick = async () => {
+  if(!tDeleteArmed){
+    tDeleteArmed = true;
+    $("tAsgDelete").textContent = "Tap again to confirm";
+    setTimeout(() => { tDeleteArmed = false; $("tAsgDelete").textContent = "Delete"; }, 4000);
+    return;
+  }
+  tDeleteArmed = false;
+  const { data, error } = await supa.rpc("teacher_asg_delete", {
+    p_username: tTeacher.username, p_pin: tTeacher.pin, p_assignment: tManaged.id
+  });
+  if(error || !data || data.error){ tBanner($("tAsgManageMsg"), (data && data.error) || (error && error.message) || "Could not delete.", false); show($("tAsgManageMsg"), true); return; }
+  $("tAsgDelete").textContent = "Delete";
+  show($("tAsgManage"), false);
+  show($("tAsgCard"), true);
+  tLoadAsgList();
+};
+
+$("tAsgManageBack").onclick = () => {
+  show($("tAsgManage"), false);
+  show($("tAsgCard"), true);
+  tLoadAsgList();
+};
+
+$("tAsgAddQ").onclick = async () => {
+  const text = $("tAsgBulk").value;
+  if(!text.trim()){ tBanner($("tAsgManageMsg"), "Paste some questions first.", false); show($("tAsgManageMsg"), true); return; }
+  const { parsed, errors } = parseBulkQuestions(text);
+  if(errors.length){
+    tBanner($("tAsgManageMsg"), `Found ${errors.length} problem(s), nothing was added: ` + errors.join(" "), false);
+    show($("tAsgManageMsg"), true);
+    return;
+  }
+  if(parsed.length === 0){ tBanner($("tAsgManageMsg"), "No valid questions found.", false); show($("tAsgManageMsg"), true); return; }
+
+  const { data, error } = await supa.rpc("teacher_asg_add_questions", {
+    p_username: tTeacher.username, p_pin: tTeacher.pin, p_assignment: tManaged.id, p_rows: parsed
+  });
+  if(error || !data || data.error){ tBanner($("tAsgManageMsg"), (data && data.error) || (error && error.message) || "Could not add questions.", false); show($("tAsgManageMsg"), true); return; }
+  $("tAsgBulk").value = "";
+  tBanner($("tAsgManageMsg"), `Added ${data.added} question(s).`, true);
+  show($("tAsgManageMsg"), true);
+  tRefreshManage();
+};
+
+let tTeacher = null;     // { username, pin }, kept in memory only
+let tCurrent = null;     // the class and subject being graded
+
+function tNote(el, text, ok){
+  el.textContent = text;
+  el.style.background = ok ? "#e8f5ee" : "#fbeaea";
+  el.style.color = ok ? "#1e7b4a" : "#a4262c";
+  show(el, true);
+}
+
+$("tLoginBtn").onclick = async () => {
+  show($("tLoginMsg"), false);
+  const username = $("tUsername").value.trim();
+  const pin = $("tPin").value;
+  if(!username || !pin){ tNote($("tLoginMsg"), "Enter your username and PIN.", false); return; }
+
+  $("tLoginBtn").disabled = true;
+  const { data, error } = await supa.rpc("teacher_get_assignments", { p_username: username, p_pin: pin });
+  $("tLoginBtn").disabled = false;
+
+  if(error || !data || data.error){
+    tNote($("tLoginMsg"), (data && data.error) || (error && error.message) || "Could not sign in.", false);
+    return;
+  }
+  tTeacher = { username, pin };
+  $("tPin").value = "";
+  show($("tLoginCard"), false);
+  $("tWelcome").textContent = `Welcome, ${data.name}`;
+  tAssignments = data.assignments || [];
+  tShowAssignments(tAssignments);
+};
+$("tPin").addEventListener("keydown", e => { if(e.key === "Enter") $("tLoginBtn").click(); });
+
+function tShowAssignments(list){
+  show($("tGradeCard"), false);
+  show($("tHomeCard"), true);
+  if(list.length === 0){
+    $("tAssignList").innerHTML = '<div style="color:#6b7785">You have no classes assigned yet. Ask the school admin to assign them.</div>';
+    return;
+  }
+  $("tAssignList").innerHTML = list.map((a, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #d9dee5;border-radius:8px;padding:12px;margin-bottom:8px;flex-wrap:wrap">
+      <span><strong>${esc(a.class)}</strong> · ${esc(a.subject)}</span>
+      <button class="btn primary t-open" data-i="${i}">Enter scores</button>
+    </div>`).join("");
+  $("tAssignList").querySelectorAll(".t-open").forEach(btn => {
+    btn.onclick = () => tOpenGrading(list[Number(btn.dataset.i)]);
+  });
+}
+
+async function tOpenGrading(a){
+  const { data, error } = await supa.rpc("teacher_get_students", {
+    p_username: tTeacher.username, p_pin: tTeacher.pin, p_class: a.class_id, p_subject: a.subject_id
+  });
+  if(error || !data || data.error){
+    tNote($("tGradeMsg"), (data && data.error) || (error && error.message) || "Could not load the class.", false);
+    show($("tGradeCard"), true);
+    return;
+  }
+  tCurrent = { class_id: a.class_id, subject_id: a.subject_id, class: a.class, subject: a.subject, students: data.students || [] };
+  show($("tHomeCard"), false);
+  show($("tGradeCard"), true);
+  $("tGradeTitle").textContent = `${a.class} · ${a.subject}`;
+  show($("tGradeMsg"), false);
+
+  $("tGradeRows").innerHTML = tCurrent.students.map((st, i) => `
+    <tr>
+      <td>${esc(st.name)}</td><td>${esc(st.admission_no || "")}</td>
+      <td><input type="number" min="0" max="40" inputmode="numeric" class="t-ca" data-i="${i}" value="${st.ca ?? ""}" style="width:76px;padding:7px;text-align:center"></td>
+      <td><input type="number" min="0" max="60" inputmode="numeric" class="t-ex" data-i="${i}" value="${st.exam ?? ""}" style="width:76px;padding:7px;text-align:center"></td>
+      <td id="tTot${i}" style="font-weight:700;text-align:center">${st.ca != null && st.exam != null ? st.ca + st.exam : "—"}</td>
+    </tr>`).join("") || '<tr><td colspan="5">No students in this class.</td></tr>';
+
+  document.querySelectorAll("#tGradeRows input").forEach(inp => {
+    inp.oninput = () => {
+      const i = inp.dataset.i;
+      const ca = document.querySelector(`.t-ca[data-i="${i}"]`).value;
+      const ex = document.querySelector(`.t-ex[data-i="${i}"]`).value;
+      $("tTot" + i).textContent = ca !== "" && ex !== "" ? Number(ca) + Number(ex) : "—";
+    };
+  });
+}
+
+$("tSaveBtn").onclick = async () => {
+  const rows = [];
+  for(let i = 0; i < tCurrent.students.length; i++){
+    const ca = document.querySelector(`.t-ca[data-i="${i}"]`).value;
+    const ex = document.querySelector(`.t-ex[data-i="${i}"]`).value;
+    if(ca === "" && ex === "") continue;
+    if(ca === "" || ex === ""){
+      tNote($("tGradeMsg"), `${tCurrent.students[i].name}: enter both CA and exam, or leave both blank.`, false);
+      return;
+    }
+    const caN = Number(ca), exN = Number(ex);
+    if(!Number.isInteger(caN) || caN < 0 || caN > 40 || !Number.isInteger(exN) || exN < 0 || exN > 60){
+      tNote($("tGradeMsg"), `${tCurrent.students[i].name}: CA must be 0 to 40 and exam 0 to 60. Nothing was saved.`, false);
+      return;
+    }
+    rows.push({ student_id: tCurrent.students[i].id, ca: caN, exam: exN });
+  }
+  if(rows.length === 0){ tNote($("tGradeMsg"), "No scores to save.", false); return; }
+
+  $("tSaveBtn").disabled = true;
+  const { data, error } = await supa.rpc("teacher_save_scores", {
+    p_username: tTeacher.username, p_pin: tTeacher.pin,
+    p_class: tCurrent.class_id, p_subject: tCurrent.subject_id, p_rows: rows
+  });
+  $("tSaveBtn").disabled = false;
+
+  if(error || !data || data.error){
+    tNote($("tGradeMsg"), (data && data.error) || (error && error.message) || "Could not save.", false);
+    return;
+  }
+  tNote($("tGradeMsg"), `Saved ${data.saved} score(s). Students can see them once the admin publishes results.`, true);
+};
+
+$("tBackBtn").onclick = async () => {
+  const { data } = await supa.rpc("teacher_get_assignments", { p_username: tTeacher.username, p_pin: tTeacher.pin });
+  tShowAssignments((data && data.assignments) || []);
+};
+
+$("tLogoutBtn").onclick = () => {
+  tTeacher = null; tCurrent = null;
+  show($("tHomeCard"), false);
+  show($("tGradeCard"), false);
+  $("tUsername").value = ""; $("tPin").value = "";
+  show($("tLoginCard"), true);
+};
 
 checkSession();
 </script>
