@@ -697,6 +697,13 @@ h2,h3{color:var(--nav);margin-top:0}
     <section id="studentsView" class="panel view hidden">
       <h2>Student Management</h2>
 
+      <div class="subcard" style="margin-bottom:14px">
+        <h3>Photo Storage</h3>
+        <div class="info">Photos saved before compression are very large, which slows the gate scanner and student profiles. This shrinks them to the same size as new uploads. Photos that are already small are left alone.</div>
+        <button id="shrinkPhotosBtn" class="btn primary" style="margin-top:8px">Shrink stored photos</button>
+        <div id="shrinkStatus" style="margin-top:8px;font-weight:700"></div>
+      </div>
+
       <div class="subcard">
         <h3>Class</h3>
         <div class="formgrid">
@@ -5331,6 +5338,66 @@ $("taAddBtn").onclick = async () => {
   }
   toast("Assignment added.");
   renderTeaching();
+};
+
+/* ================= PHOTO SHRINKING (admin) ================= */
+// Resizes a stored photo (as a data address) to at most 320 px, saved as a compressed JPEG
+function shrinkDataUrl(dataUrl, maxSide = 320, quality = 0.7){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("A stored photo could not be read."));
+    img.src = dataUrl;
+  });
+}
+
+$("shrinkPhotosBtn").onclick = async () => {
+  const btn = $("shrinkPhotosBtn");
+  const status = $("shrinkStatus");
+  btn.disabled = true;
+  status.textContent = "Loading photos…";
+
+  const { data, error } = await supa.from("students").select("id,passport_photo").not("passport_photo", "is", null);
+  if(error){ status.textContent = error.message; btn.disabled = false; return; }
+
+  // Only photos that are clearly large need shrinking (about 60 KB or more)
+  const big = (data || []).filter(st => st.passport_photo.length > 60000);
+  if(big.length === 0){
+    status.textContent = "All stored photos are already small.";
+    btn.disabled = false;
+    return;
+  }
+
+  let done = 0, failed = 0, savedKb = 0;
+  for(let i = 0; i < big.length; i++){
+    const st = big[i];
+    status.textContent = `Shrinking photo ${i + 1} of ${big.length}…`;
+    try{
+      const small = await shrinkDataUrl(st.passport_photo);
+      if(small.length < st.passport_photo.length){
+        const { error: e } = await supa.from("students").update({ passport_photo: small }).eq("id", st.id);
+        if(e) throw new Error(e.message);
+        savedKb += (st.passport_photo.length - small.length) / 1024;
+      }
+      done++;
+    }catch(e){
+      failed++;
+    }
+  }
+
+  status.textContent = `Done: ${done} photo(s) shrunk${failed ? `, ${failed} could not be shrunk` : ""}. About ${Math.round(savedKb)} KB saved.`;
+  btn.disabled = false;
 };
 
 /* ================= STAFF (admin) ================= */
