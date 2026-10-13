@@ -89,10 +89,13 @@ function note(el, text, kind){ el.textContent = text; el.className = "msg " + ki
 
 // Large, unmissable result for each scan. Stays for 8 seconds, or until the next scan.
 let feedbackTimer = null;
-function showFeedback(kind, icon, name, detail){
+function showFeedback(kind, icon, name, detail, photo){
   const el = $("bigFeedback");
   el.className = "big-feedback " + kind;
-  el.innerHTML = `<div class="icon">${icon}</div><div class="name">${esc(name)}</div><div class="detail">${esc(detail)}</div>`;
+  const picture = photo
+    ? `<img src="${photo}" alt="" style="width:180px;height:180px;object-fit:cover;border-radius:12px;border:3px solid #fff;margin:0 auto 8px;display:block">`
+    : `<div class="icon">${icon}</div>`;
+  el.innerHTML = `${picture}<div class="name">${esc(name)}</div><div class="detail">${esc(detail)}</div>${photo ? `<div style="font-size:40px;margin-top:4px">${icon}</div>` : ""}`;
   el.style.display = "block";
   el.style.animation = "none";
   void el.offsetWidth;
@@ -257,9 +260,9 @@ async function handleCode(data){
   }
   const time = new Date(res.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   if(res.status === "marked"){
-    showFeedback("ok", "✅", res.student, `Marked present · ${res.class || ""} · ${time}`);
+    showFeedback("ok", "✅", res.student, `Marked present · ${res.class || ""} · ${time}`, res.photo);
   }else{
-    showFeedback("info", "ℹ️", res.student, `Already marked today · ${res.class || ""} · first at ${time}`);
+    showFeedback("info", "ℹ️", res.student, `Already marked today · ${res.class || ""} · first at ${time}`, res.photo);
   }
 }
 
