@@ -370,6 +370,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="dashboard-card student-nav-card" data-sview="settings"><div style="font-size:24px">⚙️</div>Account Settings</div>
         <div class="dashboard-card student-nav-card" data-sview="cbt"><div style="font-size:24px">💻</div>CBT Practice</div>
         <div class="dashboard-card student-nav-card" data-sview="assignments"><div style="font-size:24px">📝</div>Assignments</div>
+        <div class="dashboard-card student-nav-card" data-sview="upcoming"><div style="font-size:24px">📅</div>Upcoming</div>
         <div class="dashboard-card student-nav-card" data-sview="helpdesk"><div style="font-size:24px">🛎️</div>Help Desk</div>
       </div>
     </div>
@@ -424,13 +425,22 @@ h2,h3{color:var(--nav);margin-top:0}
     <!-- MATERIALS (placeholder) -->
     <section id="sview-materials" class="panel sview hidden">
       <h2>Materials</h2>
-      <div class="info">Coming soon — your teachers will be able to share reading materials and resources here.</div>
+      <div class="info">Reading materials and resources shared by your teachers.</div>
+      <div id="stuMatList" style="margin-top:12px"></div>
     </section>
 
     <!-- SCHEME OF WORK (placeholder) -->
     <section id="sview-scheme" class="panel sview hidden">
       <h2>Scheme of Work</h2>
-      <div class="info">Coming soon — this term's scheme of work will appear here once it's available.</div>
+      <div class="info">This term's scheme of work, subject by subject.</div>
+      <div id="stuSchemeBox" style="margin-top:12px"></div>
+    </section>
+
+    <!-- UPCOMING (student) -->
+    <section id="sview-upcoming" class="panel sview hidden">
+      <h2>Upcoming</h2>
+      <div class="info">Exams and assignments for your class that are open now or coming up.</div>
+      <div id="upcomingList" style="margin-top:12px"></div>
     </section>
 
     <!-- ASSIGNMENTS (student) -->
@@ -575,6 +585,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="dashboard-card nav-card" data-view="staff"><div style="font-size:26px">👥</div>Staff</div>
         <div class="dashboard-card nav-card" data-view="attendance"><div style="font-size:26px">🗓️</div>Attendance</div>
         <div class="dashboard-card nav-card" data-view="assignments"><div style="font-size:26px">📝</div>Assignments</div>
+        <div class="dashboard-card nav-card" data-view="materials"><div style="font-size:26px">📚</div>Materials</div>
         <div class="dashboard-card nav-card" data-view="helpdesk" style="position:relative">
           <div style="font-size:26px">🛎️</div>Help Desk
           <span id="ticketBadge" class="hidden" style="position:absolute;top:6px;right:6px;background:var(--danger);color:#fff;border-radius:50%;min-width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px">0</span>
@@ -821,6 +832,20 @@ h2,h3{color:var(--nav);margin-top:0}
         <div id="publishList" style="margin-top:14px"></div>
       </div>
 
+      <div class="subcard" style="margin-top:16px">
+        <h3>Offline Copy (for when the internet is down)</h3>
+        <div class="info">
+          A copy of this term's results is kept on this device. It updates automatically after each approval.
+          Open the offline viewer to read results with no internet. Export a file to load the copy on another device.
+          Works only on the school's website address, not the Claude link.
+        </div>
+        <div id="offlineStatus" style="margin:10px 0;font-weight:700"></div>
+        <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="offSaveBtn" class="btn success">Save offline copy now</button>
+          <button id="offExportBtn" class="btn secondary">Export file</button>
+          <a id="offViewerLink" class="btn primary" style="text-decoration:none;color:#fff" href="results-offline.html" target="_blank" rel="noopener">Open offline viewer</a>
+        </div>
+      </div>
       <div class="subcard">
         <h3>Result Batches (from the Simulator)</h3>
         <div class="info">
@@ -1039,6 +1064,42 @@ h2,h3{color:var(--nav);margin-top:0}
             <tbody></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- MATERIALS (admin) -->
+    <section id="materialsView" class="panel view hidden">
+      <h2>Materials and Scheme of Work</h2>
+      <div class="info">Share links or notes for students, and set each subject's scheme of work for the term. Students see only what you publish here.</div>
+
+      <div class="subcard" style="margin-top:12px">
+        <h3>Add Material</h3>
+        <div class="formgrid">
+          <div class="field"><label for="matClass">Class</label><select id="matClass"></select></div>
+          <div class="field"><label for="matSubject">Subject</label><select id="matSubject"></select></div>
+          <div class="field"><label for="matTitle">Title</label><input id="matTitle" type="text" placeholder="e.g. Week 3 reading"></div>
+          <div class="field"><label for="matKind">Type</label><select id="matKind"><option value="link">Link (PDF, Drive, video or website)</option><option value="note">Written note</option></select></div>
+        </div>
+        <div id="matLinkBox" class="field" style="margin-top:8px"><label for="matUrl">Link (must start with https://)</label><input id="matUrl" type="url" placeholder="https://..."></div>
+        <div id="matNoteBox" class="field hidden" style="margin-top:8px"><label for="matBody">Note</label><textarea id="matBody" rows="5" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:7px"></textarea></div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="matPublish" type="checkbox" checked style="width:auto"> Publish now</label>
+        <button id="matAddBtn" class="btn primary" style="margin-top:8px">Add Material</button>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>Materials this term</h3>
+        <div id="matList"></div>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>Scheme of Work (this term)</h3>
+        <div class="info">One line per week: <code>week | topic | notes</code>. Saving replaces this subject's scheme for the term.</div>
+        <div class="formgrid" style="margin-top:8px">
+          <div class="field"><label for="schClass">Class</label><select id="schClass"></select></div>
+          <div class="field"><label for="schSubject">Subject</label><select id="schSubject"></select></div>
+        </div>
+        <textarea id="schText" rows="12" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:7px;font-family:monospace;font-size:13px;margin-top:8px"></textarea>
+        <button id="schSaveBtn" class="btn success" style="margin-top:8px">Save Scheme</button>
       </div>
     </section>
 
@@ -1365,6 +1426,24 @@ const SCHOOL_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAHbCAYAA
 const SUPABASE_URL = "https://wgbfdwwbqbcoarmplxoh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_UL7NKpLAbmZFnlV0zJkw0A_J5Cfid9A";
 const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Shows any page error on screen, so it can be reported without a developer console
+window.addEventListener("error", e => {
+  const b = document.createElement("div");
+  b.style.cssText = "position:fixed;left:0;right:0;bottom:0;background:#a4262c;color:#fff;padding:8px 12px;z-index:9999;font:14px sans-serif";
+  b.textContent = "Page error: " + (e.message || "unknown") + " (line " + (e.lineno || "?") + ")";
+  document.body.appendChild(b);
+});
+
+// Attendance tab state. Declared here so it exists before any other code runs.
+var attTab = "daily";
+
+// Attendance tabs are handled for the whole page, so they keep working even if another part of the script fails.
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("#attTabDaily,#attTabRegister,#attTabSchool,#attTabHolidays");
+  if(!b) return;
+  setAttTab(b.id.replace("attTab", "").toLowerCase());
+});
 
 const $ = (id) => document.getElementById(id);
 
@@ -1905,6 +1984,67 @@ $("examNextBtn").onclick = () => {
 };
 
 
+/* ================= UPCOMING (student) ================= */
+async function renderUpcoming(){
+  const box = $("upcomingList");
+  box.innerHTML = '<div class="empty">Loading…</div>';
+
+  const { data, error } = await supa.rpc("get_upcoming_for_student", {
+    p_admission_no: studentSession.admissionNo, p_password: studentSession.password
+  });
+  if(error || !data || data.error){
+    box.innerHTML = `<div class="empty">${esc((data && data.error) || (error && error.message) || "Could not load upcoming items.")}</div>`;
+    return;
+  }
+
+  const when = t => t ? new Date(t).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+  const timing = x => {
+    const parts = [];
+    if(x.state === "scheduled" && x.opens_at) parts.push("Opens " + when(x.opens_at));
+    else parts.push("Open now");
+    if(x.closes_at) parts.push("Closes " + when(x.closes_at));
+    return parts.join(" · ");
+  };
+  const card = (x, subject, status, action) => `
+    <div class="student-card" style="align-items:flex-start">
+      <span><strong>${esc(x.title)}</strong> <span class="tag ${status.cls}">${esc(status.label)}</span>
+        <br><small style="color:var(--muted)">${esc(subject)} · ${esc(timing(x))}</small></span>
+      ${action}
+    </div>`;
+
+  const exams = data.exams || [];
+  const asg = data.assignments || [];
+
+  const examHtml = exams.length ? exams.map(e => {
+    const status = e.submitted ? { cls: "live", label: "SUBMITTED" }
+      : e.state === "scheduled" ? { cls: "demo", label: "OPENS LATER" }
+      : { cls: "live", label: "OPEN NOW" };
+    return card(e, e.subject, status, "");
+  }).join("") : '<div class="empty">No exams are scheduled for your class.</div>';
+
+  const asgHtml = asg.length ? asg.map(a => {
+    if(a.submitted){
+      return card(a, a.subject, { cls: "live", label: "SUBMITTED" },
+        `<span><strong>${a.raw_score}/${a.max_score}</strong></span>`);
+    }
+    const status = a.state === "scheduled" ? { cls: "demo", label: "OPENS LATER" } : { cls: "live", label: "OPEN NOW" };
+    const action = a.state === "scheduled" ? ""
+      : `<button class="btn primary upc-asg-go">Go to Assignments</button>`;
+    return card(a, a.subject, status, action);
+  }).join("") : '<div class="empty">No assignments are open or scheduled for your class.</div>';
+
+  box.innerHTML = `
+    <h3>Exams</h3>
+    ${examHtml}
+    <div class="info" style="margin:10px 0 18px">Sit exams from the <strong>Exam</strong> tab on the school home page, using your ID and password.</div>
+    <h3>Assignments</h3>
+    ${asgHtml}`;
+
+  box.querySelectorAll(".upc-asg-go").forEach(btn => {
+    btn.onclick = () => showStudentView("assignments");
+  });
+}
+
 /* ================= ASSIGNMENTS (student) ================= */
 let stuAsg = { id: null, questions: [], index: 0 };
 
@@ -2330,6 +2470,9 @@ function showStudentView(name){
     b.classList.toggle("active", b.dataset.sview === name);
   });
   if(name === "assignments") renderStudentAssignments();
+  if(name === "upcoming") renderUpcoming();
+  if(name === "materials") renderStudentMaterials();
+  if(name === "scheme") renderStudentScheme();
   if(name === "cbt"){
     $("cbtStudentTakeBox").classList.add("hidden");
     $("cbtResultBox").classList.add("hidden");
@@ -2621,7 +2764,7 @@ function showView(name){
   if(name === "scores") renderScoresTable();
   if(name === "reports") { updateStudentSelect(); loadExtrasForSelectedStudent(); }
   if(name === "ranges") renderRanges();
-  if(name === "history") { renderHistory(); refreshPublishClasses(); renderBatches(); }
+  if(name === "history") { renderHistory(); refreshPublishClasses(); renderBatches(); offShowStatus(); }
   if(name === "exams") { updateExamSubjectSelect(); renderExamList(); }
   if(name === "cbt") { updateCbtSubjectSelect(); renderCbtList(); }
   if(name === "notices") renderNoticesAdmin();
@@ -2629,6 +2772,7 @@ function showView(name){
   if(name === "staff") renderStaffView();
   if(name === "attendance") renderAttendanceView();
   if(name === "assignments") renderAsgAdmin();
+  if(name === "materials") renderMaterialsAdmin();
   if(name === "helpdesk") renderTickets();
 }
 document.querySelectorAll(".nav-card[data-view]").forEach(b => {
@@ -3690,6 +3834,7 @@ async function approveBatch(id){
   const { error: u } = await supa.from("score_batches").update({ status: "approved" }).eq("id", id);
   if(u){ toast(u.message); return; }
   toast(`Approved: ${rows.length} scores saved.`);
+  saveOfflineCopy();
   renderBatches();
   renderScoresTable && typeof renderScoresTable === "function" && renderScoresTable();
 }
@@ -4312,6 +4457,287 @@ function renderVideoFinder(){
 $("vidSearch").oninput = renderVideoFinder;
 $("asgSubject").addEventListener("change", renderVideoFinder);
 
+/* ================= OFFLINE COPY (admin) ================= */
+const OFF_DB = "olas-offline", OFF_STORE = "scores";
+
+function offOpen(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(OFF_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(OFF_STORE, { keyPath: "key" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Replaces this term's copy with the given records. Deletes first, then writes.
+async function offReplaceTerm(session, term, records){
+  const db = await offOpen();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(OFF_STORE, "readwrite");
+    const cur = tx.objectStore(OFF_STORE).openCursor();
+    cur.onsuccess = e => {
+      const c = e.target.result;
+      if(c){
+        if(c.value.session === session && c.value.term === term) c.delete();
+        c.continue();
+      }else{
+        const store = tx.objectStore(OFF_STORE);
+        records.forEach(r => store.put(r));
+      }
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function offAllRecords(){
+  const db = await offOpen();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(OFF_STORE).objectStore(OFF_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function offShowStatus(){
+  const last = (() => { try{ return localStorage.getItem("olas-offline-last"); }catch(e){ return null; } })();
+  $("offlineStatus").textContent = last
+    ? "Last saved on this device: " + new Date(last).toLocaleString()
+    : "No offline copy saved on this device yet.";
+}
+
+async function saveOfflineCopy(){
+  if(!("indexedDB" in window)){ toast("This browser cannot store an offline copy."); return false; }
+  const { data, error } = await supa.from("scores").select("student_id,subject_id,ca,exam,total,session,term")
+    .eq("session", cache.settings.session).eq("term", cache.settings.term);
+  if(error){ toast(error.message); return false; }
+
+  const now = new Date().toISOString();
+  const records = (data || []).map(r => {
+    const st = cache.students.find(x => x.id === Number(r.student_id));
+    const sub = cache.subjects.find(x => x.id === Number(r.subject_id));
+    const klass = st ? cache.classes.find(c => c.id === Number(st.class_id)) : null;
+    return {
+      key: `${r.session}|${r.term}|${r.student_id}|${r.subject_id}`,
+      session: r.session, term: r.term,
+      class: klass ? klass.name : "",
+      admission_no: st ? (st.admission_no || "") : "",
+      student: st ? st.full_name : "Unknown",
+      subject: sub ? sub.name : "",
+      ca: r.ca, exam: r.exam, total: r.total, saved_at: now
+    };
+  });
+
+  try{
+    await offReplaceTerm(cache.settings.session, cache.settings.term, records);
+    try{ localStorage.setItem("olas-offline-last", now); }catch(e){}
+  }catch(e){
+    toast("The offline copy could not be saved: " + e.message);
+    return false;
+  }
+  offShowStatus();
+  return true;
+}
+
+async function exportOfflineCopy(){
+  const records = await offAllRecords();
+  if(records.length === 0){ toast("Nothing to export yet. Save the offline copy first."); return; }
+  const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `olas-results-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`Exported ${records.length} result(s).`);
+}
+
+$("offSaveBtn").onclick = async () => {
+  if(await saveOfflineCopy()) toast("Offline copy saved on this device.");
+};
+$("offExportBtn").onclick = exportOfflineCopy;
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+/* ================= MATERIALS & SCHEME (admin) ================= */
+async function renderMaterialsAdmin(){
+  const classOpts = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  const subOpts = cache.subjects.slice().sort((a, b) => a.name.localeCompare(b.name))
+    .map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+  $("matClass").innerHTML = classOpts; $("schClass").innerHTML = classOpts;
+  $("matSubject").innerHTML = subOpts; $("schSubject").innerHTML = subOpts;
+  renderMatList();
+  loadSchemeEditor();
+}
+
+$("matKind").onchange = () => {
+  const note = $("matKind").value === "note";
+  show($("matLinkBox"), !note);
+  show($("matNoteBox"), note);
+};
+
+$("matAddBtn").onclick = async () => {
+  const title = $("matTitle").value.trim();
+  const kind = $("matKind").value;
+  const url = $("matUrl").value.trim();
+  const body = $("matBody").value.trim();
+  if(!title){ toast("Enter a title."); return; }
+  if(kind === "link" && !/^https:\/\//i.test(url)){ toast("The link must start with https://"); return; }
+  if(kind === "note" && !body){ toast("Write the note first."); return; }
+
+  const { error } = await supa.from("materials").insert({
+    class_id: Number($("matClass").value), subject_id: Number($("matSubject").value),
+    session: cache.settings.session, term: cache.settings.term, title, kind,
+    url: kind === "link" ? url : null, body: kind === "note" ? body : null,
+    is_published: $("matPublish").checked
+  });
+  if(error){ toast(error.message); return; }
+  ["matTitle", "matUrl", "matBody"].forEach(id => $(id).value = "");
+  toast("Material added.");
+  renderMatList();
+};
+
+async function renderMatList(){
+  const box = $("matList");
+  const { data, error } = await supa.from("materials").select("*")
+    .eq("session", cache.settings.session).eq("term", cache.settings.term)
+    .order("created_at", { ascending: false });
+  if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  if(!data || data.length === 0){ box.innerHTML = '<div class="empty">No materials yet this term.</div>'; return; }
+
+  box.innerHTML = data.map(m => {
+    const klass = cache.classes.find(c => c.id === Number(m.class_id));
+    const sub = cache.subjects.find(s => s.id === Number(m.subject_id));
+    return `<div class="student-card" style="align-items:flex-start">
+      <span><strong>${esc(m.title)}</strong>
+        <span class="tag ${m.is_published ? "live" : "demo"}">${m.is_published ? "PUBLISHED" : "DRAFT"}</span>
+        <br><small style="color:var(--muted)">${esc(klass ? klass.name : "")} · ${esc(sub ? sub.name : "")} · ${m.kind === "link" ? "Link" : "Note"}</small>
+      </span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn secondary mat-toggle" data-id="${m.id}" data-pub="${m.is_published}">${m.is_published ? "Unpublish" : "Publish"}</button>
+        <button class="btn danger mat-del" data-id="${m.id}">Delete</button>
+      </span>
+    </div>`;
+  }).join("");
+
+  box.querySelectorAll(".mat-toggle").forEach(btn => {
+    btn.onclick = async () => {
+      const { error: e } = await supa.from("materials").update({ is_published: btn.dataset.pub !== "true" }).eq("id", Number(btn.dataset.id));
+      if(e){ toast(e.message); return; }
+      renderMatList();
+    };
+  });
+  box.querySelectorAll(".mat-del").forEach(btn => {
+    let armed = false;
+    btn.onclick = async () => {
+      if(!armed){
+        armed = true; btn.textContent = "Confirm?";
+        setTimeout(() => { armed = false; btn.textContent = "Delete"; }, 4000);
+        return;
+      }
+      const { error: e } = await supa.from("materials").delete().eq("id", Number(btn.dataset.id));
+      if(e){ toast(e.message); return; }
+      renderMatList();
+    };
+  });
+}
+
+async function loadSchemeEditor(){
+  const classId = Number($("schClass").value), subjectId = Number($("schSubject").value);
+  if(!classId || !subjectId) return;
+  const { data, error } = await supa.from("scheme_weeks").select("week,topic,notes")
+    .eq("class_id", classId).eq("subject_id", subjectId)
+    .eq("session", cache.settings.session).eq("term", cache.settings.term).order("week");
+  if(error){ toast(error.message); return; }
+  $("schText").value = (data || []).map(w => `${w.week} | ${w.topic}${w.notes ? " | " + w.notes : ""}`).join("\n");
+}
+$("schClass").onchange = loadSchemeEditor;
+$("schSubject").onchange = loadSchemeEditor;
+
+$("schSaveBtn").onclick = async () => {
+  const classId = Number($("schClass").value), subjectId = Number($("schSubject").value);
+  if(!classId || !subjectId){ toast("Choose a class and subject."); return; }
+
+  const lines = $("schText").value.split("\n").map(l => l.trim()).filter(Boolean);
+  const rows = [], seen = new Set(), problems = [];
+  lines.forEach((line, i) => {
+    const parts = line.split("|").map(x => x.trim());
+    const week = Number(parts[0]);
+    if(!Number.isInteger(week) || week < 1 || week > 60 || !parts[1]){
+      problems.push(`Line ${i + 1}: use "week | topic | notes".`);
+      return;
+    }
+    if(seen.has(week)){ problems.push(`Line ${i + 1}: week ${week} appears twice.`); return; }
+    seen.add(week);
+    rows.push({ class_id: classId, subject_id: subjectId, session: cache.settings.session, term: cache.settings.term,
+      week, topic: parts[1], notes: parts.slice(2).join(" | ") || null });
+  });
+  if(problems.length){ toast(problems.join(" ")); return; }
+
+  const { error: delErr } = await supa.from("scheme_weeks").delete()
+    .eq("class_id", classId).eq("subject_id", subjectId)
+    .eq("session", cache.settings.session).eq("term", cache.settings.term);
+  if(delErr){ toast(delErr.message); return; }
+  if(rows.length){
+    const { error: insErr } = await supa.from("scheme_weeks").insert(rows);
+    if(insErr){ toast(insErr.message); return; }
+  }
+  toast(`Scheme saved: ${rows.length} week(s).`);
+};
+
+/* ================= MATERIALS & SCHEME (student) ================= */
+async function renderStudentMaterials(){
+  const box = $("stuMatList");
+  box.innerHTML = '<div class="empty">Loading…</div>';
+  const { data, error } = await supa.rpc("get_materials_for_student", {
+    p_admission_no: studentSession.admissionNo, p_password: studentSession.password
+  });
+  if(error || !data || data.error){
+    box.innerHTML = `<div class="empty">${esc((data && data.error) || (error && error.message) || "Could not load materials.")}</div>`;
+    return;
+  }
+  const list = data.materials || [];
+  if(list.length === 0){ box.innerHTML = '<div class="empty">No materials have been shared for your class yet.</div>'; return; }
+
+  box.innerHTML = list.map(m => {
+    const action = m.kind === "link"
+      ? `<a class="btn primary" style="text-decoration:none;color:#fff" target="_blank" rel="noopener" href="${esc(m.url)}">Open</a>`
+      : "";
+    const note = m.kind === "note"
+      ? `<details style="margin-top:8px;width:100%"><summary style="cursor:pointer">Read note</summary>
+           <div style="white-space:pre-line;padding:8px 0">${esc(m.body)}</div></details>`
+      : "";
+    return `<div class="student-card" style="flex-wrap:wrap">
+      <span><strong>${esc(m.title)}</strong> <span class="tag">${esc(m.subject)}</span></span>
+      ${action}${note}
+    </div>`;
+  }).join("");
+}
+
+async function renderStudentScheme(){
+  const box = $("stuSchemeBox");
+  box.innerHTML = '<div class="empty">Loading…</div>';
+  const { data, error } = await supa.rpc("get_scheme_for_student", {
+    p_admission_no: studentSession.admissionNo, p_password: studentSession.password
+  });
+  if(error || !data || data.error){
+    box.innerHTML = `<div class="empty">${esc((data && data.error) || (error && error.message) || "Could not load the scheme of work.")}</div>`;
+    return;
+  }
+  const subjects = data.subjects || [];
+  if(subjects.length === 0){ box.innerHTML = '<div class="empty">The scheme of work has not been published for this term yet.</div>'; return; }
+
+  box.innerHTML = subjects.map(sub => `
+    <details class="student-card" style="flex-direction:column;align-items:stretch">
+      <summary style="cursor:pointer"><strong>${esc(sub.subject)}</strong> <small style="color:var(--muted)">· ${sub.weeks.length} week(s)</small></summary>
+      <div class="table-wrap" style="margin-top:10px"><table class="data">
+        <thead><tr><th>Week</th><th>Topic</th><th>Notes</th></tr></thead>
+        <tbody>${sub.weeks.map(w => `<tr><td>${w.week}</td><td style="text-align:left">${esc(w.topic)}</td><td style="text-align:left">${esc(w.notes || "")}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </details>`).join("");
+}
+
 /* ================= ASSIGNMENTS (admin) ================= */
 let asgManageId = null;
 
@@ -4541,7 +4967,6 @@ async function drawAttendance(){
     </table>`;
 }
 
-let attTab = "daily";
 
 function setAttTab(name){
   attTab = name;
@@ -4762,10 +5187,6 @@ async function renderSchool(){
 $("attClassSelect").onchange = refreshAttendance;
 $("attDate").onchange = refreshAttendance;
 $("attMonth").onchange = refreshAttendance;
-$("attTabDaily").onclick = () => setAttTab("daily");
-$("attTabRegister").onclick = () => setAttTab("register");
-$("attTabSchool").onclick = () => setAttTab("school");
-$("attTabHolidays").onclick = () => setAttTab("holidays");
 $("attPrintBtn").onclick = () => window.print();
 
 /* ================= STAFF (admin) ================= */
