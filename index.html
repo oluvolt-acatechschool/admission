@@ -1436,6 +1436,9 @@ window.addEventListener("error", e => {
 });
 
 // Attendance tab state. Declared here so it exists before any other code runs.
+// Shows or hides an element by its hidden class
+function show(el, on){ el.classList.toggle("hidden", !on); }
+
 var attTab = "daily";
 
 // Attendance tabs are handled for the whole page, so they keep working even if another part of the script fails.
