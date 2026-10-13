@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline Results · OLUVOLT ACATECH SCHOOL</title>
+<style>
+  :root{--navy:#0b3d6e;--navy2:#182848;--gold:#c9a227;--ink:#1d2733;--muted:#6b7785;--line:#d9dee5;--paper:#fbfaf6}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Georgia,"Times New Roman",serif;color:var(--ink);background:var(--paper)}
+  header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:18px 20px;text-align:center;border-bottom:4px solid var(--gold)}
+  header h1{margin:0;font-size:20px} header p{margin:4px 0 0;font-size:13px;opacity:.85}
+  main{max-width:1000px;margin:18px auto;padding:0 14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+  select,input{padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit;background:#fff}
+  button,.btn{font:inherit;padding:10px 14px;border:0;border-radius:6px;cursor:pointer;color:#fff;background:var(--navy);text-decoration:none;display:inline-block}
+  button.ghost{background:#eef1f5;color:var(--ink);border:1px solid var(--line)}
+  button.danger{background:#a4262c}
+  .note{background:#f4f7fb;border-left:4px solid var(--navy);padding:10px 12px;font-size:14px;margin-bottom:12px}
+  .msg{padding:10px 12px;border-radius:6px;font-size:14px;margin-top:10px}
+  .msg.bad{background:#fbeaea;color:#a4262c} .msg.ok{background:#e8f5ee;color:#1e7b4a}
+  .hidden{display:none}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+  th{background:#eef2f7;color:var(--navy)}
+  td.num,th.num{text-align:center}
+  .muted{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>OLUVOLT ACATECH SCHOOL</h1>
+  <p>Offline results · works without internet</p>
+</header>
+
+<main>
+  <div class="card">
+    <div class="note">
+      These results are stored on <strong>this device only</strong>. Use <strong>Export</strong> to save a copy to a file,
+      and <strong>Import</strong> on another device to load it there.
+    </div>
+    <div id="status" class="muted"></div>
+  </div>
+
+  <div id="empty" class="card hidden">
+    <strong>No offline copy on this device yet.</strong>
+    <p class="muted">Open the admin portal on the school website, go to <em>History → Offline Copy</em>, and press <em>Save offline copy now</em>. Or import a file below.</p>
+  </div>
+
+  <div id="app" class="card hidden">
+    <div class="row">
+      <div><label for="fTerm">Term</label><select id="fTerm"></select></div>
+      <div><label for="fClass">Class</label><select id="fClass"></select></div>
+      <div><label for="fSubject">Subject</label><select id="fSubject"></select></div>
+      <div><label for="fSearch">Search name or ID</label><input id="fSearch" type="search" placeholder="e.g. Ada or OLAS2601001"></div>
+    </div>
+    <div id="summary" class="muted" style="margin:12px 0"></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Student</th><th>ID</th><th>Class</th><th>Subject</th><th class="num">CA</th><th class="num">Exam</th><th class="num">Total</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="exportBtn" class="ghost">Export file</button>
+      <label class="btn ghost" style="cursor:pointer;color:var(--ink)">Import file
+        <input id="importFile" type="file" accept="application/json,.json" style="display:none">
+      </label>
+      <button id="clearBtn" class="danger">Clear this device's copy</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+</main>
+
+<script>
+const DB = "olas-offline", STORE = "scores";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function say(text, ok){ $("msg").innerHTML = `<div class="msg ${ok ? "ok" : "bad"}">${esc(text)}</div>`; }
+
+function openDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: "key" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function allRecords(){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE).objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function putRecords(records){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
+    records.forEach(r => store.put(r));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function clearAll(){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+let all = [];
+
+function fillSelect(sel, values, allLabel){
+  const current = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>` + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  if(values.includes(current)) sel.value = current;
+}
+
+function render(){
+  const term = $("fTerm").value, cls = $("fClass").value, sub = $("fSubject").value;
+  const q = $("fSearch").value.trim().toLowerCase();
+  const rows = all.filter(r =>
+    (!term || `${r.session} · ${r.term}` === term) &&
+    (!cls || r.class === cls) &&
+    (!sub || r.subject === sub) &&
+    (!q || (r.student + " " + r.admission_no).toLowerCase().includes(q))
+  ).sort((a, b) => a.student.localeCompare(b.student) || a.subject.localeCompare(b.subject));
+
+  $("rows").innerHTML = rows.length
+    ? rows.map(r => `<tr><td>${esc(r.student)}</td><td>${esc(r.admission_no)}</td><td>${esc(r.class)}</td>
+        <td>${esc(r.subject)}</td><td class="num">${r.ca}</td><td class="num">${r.exam}</td><td class="num"><strong>${r.total}</strong></td></tr>`).join("")
+    : `<tr><td colspan="7" class="muted">No results match these filters.</td></tr>`;
+
+  $("summary").textContent = `${rows.length} result(s) shown`;
+}
+
+async function load(){
+  all = await allRecords();
+  if(all.length === 0){
+    $("empty").classList.remove("hidden");
+    $("app").classList.add("hidden");
+    $("status").textContent = "No results stored on this device.";
+    return;
+  }
+  $("empty").classList.add("hidden");
+  $("app").classList.remove("hidden");
+
+  const terms = [...new Set(all.map(r => `${r.session} · ${r.term}`))].sort().reverse();
+  const classes = [...new Set(all.map(r => r.class))].filter(Boolean).sort();
+  const subjects = [...new Set(all.map(r => r.subject))].filter(Boolean).sort();
+  fillSelect($("fTerm"), terms, "All terms");
+  fillSelect($("fClass"), classes, "All classes");
+  fillSelect($("fSubject"), subjects, "All subjects");
+
+  const saved = all.map(r => r.saved_at).filter(Boolean).sort().pop();
+  $("status").textContent = `${all.length} result(s) on this device · last saved ${saved ? new Date(saved).toLocaleString() : "unknown"}`;
+  render();
+}
+
+["fTerm","fClass","fSubject"].forEach(id => $(id).addEventListener("change", render));
+$("fSearch").addEventListener("input", render);
+
+$("exportBtn").onclick = async () => {
+  const records = await allRecords();
+  if(records.length === 0){ say("Nothing to export yet.", false); return; }
+  const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `olas-results-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  say(`Exported ${records.length} result(s).`, true);
+};
+
+$("importFile").onchange = async () => {
+  const file = $("importFile").files[0];
+  if(!file) return;
+  try{
+    const records = JSON.parse(await file.text());
+    if(!Array.isArray(records) || !records.every(r => r && r.key && r.session && r.term)){
+      say("That file is not an offline results file.", false);
+      return;
+    }
+    await putRecords(records);
+    say(`Imported ${records.length} result(s).`, true);
+    await load();
+  }catch(e){
+    say("The file could not be read: " + e.message, false);
+  }
+  $("importFile").value = "";
+};
+
+let clearArmed = false;
+$("clearBtn").onclick = async () => {
+  if(!clearArmed){
+    clearArmed = true;
+    $("clearBtn").textContent = "Tap again to confirm";
+    setTimeout(() => { clearArmed = false; $("clearBtn").textContent = "Clear this device's copy"; }, 4000);
+    return;
+  }
+  await clearAll();
+  clearArmed = false;
+  $("clearBtn").textContent = "Clear this device's copy";
+  say("This device's offline copy has been cleared.", true);
+  await load();
+};
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+load().catch(e => say("Could not open the offline copy: " + e.message, false));
+</script>
+</body>
+</html>
