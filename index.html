@@ -220,13 +220,15 @@ h2,h3{color:var(--nav);margin-top:0}
         <div style="border:1px solid #d9dee5;border-radius:8px;padding:12px;margin-top:12px">
           <strong>New assignment</strong>
           <label for="tAsgPair" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Class and subject</label>
-          <select id="tAsgPair" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit"></select>
+          <div id="tAsgPair" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:170px;overflow:auto"></div>
           <label for="tAsgTitle" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Title</label>
           <input id="tAsgTitle" type="text" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
           <label for="tAsgVideo" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">YouTube link (optional)</label>
           <input id="tAsgVideo" type="url" placeholder="https://www.youtube.com/watch?v=..." style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
           <label for="tAsgPer" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Questions per student</label>
           <input id="tAsgPer" type="number" min="1" value="10" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
+          <label for="tAsgTime" style="display:block;margin-top:8px;font-size:13px;color:#6b7785">Time limit for questions (minutes, optional)</label>
+          <input id="tAsgTime" type="number" min="1" placeholder="e.g. 20" style="width:100%;padding:9px;border:1px solid #bfc6cc;border-radius:6px;font:inherit">
           <button id="tAsgCreateBtn" class="btn primary" style="margin-top:10px">Create assignment</button>
         </div>
         <button id="tAsgBack" class="btn secondary" style="margin-top:12px">Back to classes</button>
@@ -526,6 +528,12 @@ h2,h3{color:var(--nav);margin-top:0}
         <h3 id="stuAsgTitle"></h3>
         <div id="stuAsgInstr" class="info"></div>
         <div id="stuAsgVideo" style="margin:10px 0"></div>
+        <div id="stuAsgBeginBox" style="text-align:center;margin:14px 0">
+          <div class="info">Watch the video first. When you are ready, press Start questions.</div>
+          <button id="stuAsgBegin" class="btn primary" style="margin-top:8px">Start questions</button>
+        </div>
+        <div id="stuAsgTimer" class="hidden" style="font-weight:700;text-align:center;font-size:18px;padding:8px;margin-bottom:8px;border-radius:6px;background:#f4f7fb"></div>
+        <div id="stuAsgQuestions" class="hidden">
         <div id="stuAsgQs"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
           <button id="stuAsgPrev" class="btn secondary">Previous</button>
@@ -533,6 +541,7 @@ h2,h3{color:var(--nav);margin-top:0}
           <button id="stuAsgNext" class="btn primary">Next</button>
         </div>
         <button id="stuAsgSubmit" class="btn success hidden" style="margin-top:12px;width:100%">Submit</button>
+        </div>
         <div id="stuAsgMsg" class="warn hidden" style="margin-top:12px;font-weight:700"></div>
       </div>
     </section>
@@ -677,6 +686,13 @@ h2,h3{color:var(--nav);margin-top:0}
       </div>
       <div class="info">
         <strong id="dashboardSession">2026/2027</strong> • <strong id="dashboardTerm">First Term</strong>
+      </div>
+
+      <div class="subcard" style="margin-top:16px">
+        <h3>Absent Today</h3>
+        <div class="info">Students who have not been scanned at the gate today. The list updates as the day goes on, so check it again after the gate closes.</div>
+        <div id="absentToday" style="margin-top:10px"></div>
+        <button id="copyAbsentBtn" class="btn secondary" style="margin-top:10px">Copy list</button>
       </div>
 
       <div class="subcard" style="margin-top:16px">
@@ -1193,11 +1209,12 @@ h2,h3{color:var(--nav);margin-top:0}
       <div class="subcard" style="margin-top:12px">
         <h3>Create Assignment</h3>
         <div class="formgrid">
-          <div class="field"><label for="asgClass">Class</label><select id="asgClass"></select></div>
+          <div class="field"><label>Classes (choose up to 5)</label><div id="asgClassBox" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:170px;overflow:auto"></div></div>
           <div class="field"><label for="asgSubject">Subject</label><select id="asgSubject"></select></div>
           <div class="field"><label for="asgTitle">Title</label><input id="asgTitle" type="text" placeholder="e.g. Photosynthesis Video Task"></div>
           <div class="field"><label for="asgVideo">YouTube link (optional)</label><input id="asgVideo" type="url" placeholder="https://www.youtube.com/watch?v=..."></div>
           <div class="field"><label for="asgPerStudent">Questions per student</label><input id="asgPerStudent" type="number" min="1" value="10"></div>
+          <div class="field"><label for="asgTimeLimit">Time limit for questions (minutes, optional)</label><input id="asgTimeLimit" type="number" min="1" placeholder="e.g. 20"></div>
           <div class="field"><label for="asgOpens">Opens at (optional)</label><input id="asgOpens" type="datetime-local"></div>
           <div class="field"><label for="asgCloses">Closes at (optional)</label><input id="asgCloses" type="datetime-local"></div>
         </div>
@@ -1307,9 +1324,8 @@ h2,h3{color:var(--nav);margin-top:0}
       <div id="attHolidayPanel" class="subcard no-print hidden" style="margin-top:12px">
         <h3>Holidays for this month</h3>
         <div class="info">
-          Press <strong>Mark holiday</strong> on any school day the school is closed, for example when the government
-          declares a holiday. The gate scanner stops for that day, and the day is left out of attendance counts.
-          Press <strong>Undo holiday</strong> to reopen it.
+          Tap a day to mark it as a holiday, for example when the government declares one. The gate stops for that day,
+          and it is left out of attendance counts. Tap it again to undo.
         </div>
         <div class="field" style="margin-top:8px"><label for="attHolReason">Reason (used for the next holiday you mark)</label><input id="attHolReason" type="text" value="Government declaration"></div>
         <div id="attHolidayList" style="margin-top:10px"></div>
@@ -1490,6 +1506,10 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="field"><label>Class Teacher's Title</label><input id="teacherTitle"></div>
         <div class="field"><label>Class Teacher's Name</label><input id="teacherName"></div>
       </div>
+
+      <h3>Attendance Tracking</h3>
+      <div class="field"><label for="setAttStart">Attendance counts start on</label><input id="setAttStart" type="date"></div>
+      <div class="info" style="margin-bottom:8px">Days before this date are left out of attendance counts, registers and the absence list.</div>
 
       <h3>Footer Content (shown at the bottom of the home page)</h3>
       <div class="field">
@@ -2188,7 +2208,8 @@ async function startStudentAssignment(id){
     return;
   }
 
-  stuAsg = { id, questions: data.questions || [], index: 0 };
+  clearInterval(stuAsgTimerId);
+  stuAsg = { id, questions: data.questions || [], index: 0, limit: data.time_limit_minutes || null, endsAt: null, done: false, submitting: false };
   $("stuAsgList").innerHTML = "";
   $("stuAsgTake").classList.remove("hidden");
   $("stuAsgTitle").textContent = data.title;
@@ -2213,7 +2234,38 @@ async function startStudentAssignment(id){
       </div>
     </div>`).join("");
 
+  // The questions stay hidden until the student presses Start questions
+  $("stuAsgQuestions").classList.add("hidden");
+  $("stuAsgTimer").classList.add("hidden");
+  $("stuAsgBeginBox").classList.remove("hidden");
+  $("stuAsgBegin").classList.remove("hidden");
+}
+
+function beginStudentQuestions(){
+  $("stuAsgBeginBox").classList.add("hidden");
+  $("stuAsgQuestions").classList.remove("hidden");
   updateStudentAsgNav();
+  if(stuAsg.limit){
+    stuAsg.endsAt = Date.now() + stuAsg.limit * 60000;
+    $("stuAsgTimer").classList.remove("hidden");
+    tickStudentTimer();
+    clearInterval(stuAsgTimerId);
+    stuAsgTimerId = setInterval(tickStudentTimer, 1000);
+  }
+}
+
+let stuAsgTimerId = null;
+
+function tickStudentTimer(){
+  if(stuAsg.done) return;
+  const left = Math.max(0, Math.round((stuAsg.endsAt - Date.now()) / 1000));
+  const m = Math.floor(left / 60), s = left % 60;
+  $("stuAsgTimer").textContent = `Time left: ${m}:${String(s).padStart(2, "0")}`;
+  if(left <= 0){
+    clearInterval(stuAsgTimerId);
+    toast("Time is up. Your answers are being submitted.");
+    submitStudentAssignment(true);
+  }
 }
 
 function youtubeIdFromUrl(url){
@@ -2233,43 +2285,51 @@ function updateStudentAsgNav(){
   $("stuAsgSubmit").classList.toggle("hidden", !last);
 }
 
+$("stuAsgBegin").onclick = beginStudentQuestions;
 $("stuAsgPrev").onclick = () => { if(stuAsg.index > 0){ stuAsg.index--; updateStudentAsgNav(); } };
 $("stuAsgNext").onclick = () => { if(stuAsg.index < stuAsg.questions.length - 1){ stuAsg.index++; updateStudentAsgNav(); } };
+$("stuAsgSubmit").onclick = () => submitStudentAssignment(false);
 
-$("stuAsgSubmit").onclick = async () => {
+// Asks the student before submitting with blanks, without a native dialog
+function confirm_free(text){
+  toast(text + " Tap Submit again to confirm.");
+  if(stuAsg.confirmPending){ stuAsg.confirmPending = false; return true; }
+  stuAsg.confirmPending = true;
+  return false;
+}
+
+async function submitStudentAssignment(auto){
+  if(stuAsg.done || stuAsg.submitting) return;
   const answers = {};
   document.querySelectorAll("#stuAsgQs input[type=radio]:checked").forEach(input => {
     answers[input.name.slice(2)] = input.value; // strip the leading "sa"
   });
-  if(Object.keys(answers).length < stuAsg.questions.length){
+  if(!auto && Object.keys(answers).length < stuAsg.questions.length){
     if(!confirm_free("Some questions are not answered. Submit anyway?")) return;
   }
 
+  stuAsg.submitting = true;
   $("stuAsgSubmit").disabled = true;
   const { data, error } = await supa.rpc("submit_assignment", {
     p_admission_no: studentSession.admissionNo, p_password: studentSession.password,
     p_assignment_id: stuAsg.id, p_answers: answers
   });
+  stuAsg.submitting = false;
   $("stuAsgSubmit").disabled = false;
 
   if(error || !data || data.error){
     toast((data && data.error) || (error && error.message) || "Could not submit.");
     return;
   }
+  stuAsg.done = true;
+  clearInterval(stuAsgTimerId);
   $("stuAsgMsg").textContent = `Submitted. Your score: ${data.raw_score} / ${data.max_score}.`;
   $("stuAsgMsg").classList.remove("hidden");
   $("stuAsgSubmit").classList.add("hidden");
   $("stuAsgNext").classList.add("hidden");
   $("stuAsgPrev").classList.add("hidden");
   $("stuAsgProgress").textContent = "";
-};
-
-// Asks the student before submitting with blanks, without a native dialog
-function confirm_free(text){
-  toast(text + " Tap Submit again to confirm.");
-  if(stuAsg.confirmPending) { stuAsg.confirmPending = false; return true; }
-  stuAsg.confirmPending = true;
-  return false;
+  $("stuAsgTimer").textContent = "Submitted";
 }
 
 /* ================= CBT PRACTICE (student) ================= */
@@ -2887,6 +2947,7 @@ async function updateDashboard(){
   }
   refreshTicketBadge();
   loadAnalytics();
+  loadAbsentToday();
 }
 
 const PASS_MARK = 40;
@@ -2962,6 +3023,82 @@ async function loadAnalytics(){
         ${bar(x.pr, x.pr < 50 ? "#a4262c" : "#1e7b4a")}
       </div>`).join("");
 }
+
+let absentCopyText = "";
+
+async function loadAbsentToday(){
+  const box = $("absentToday");
+  const day = todayLagos();
+  const startDate = cache.settings && cache.settings.attendance_start;
+  if(startDate && day < startDate){
+    box.innerHTML = `<div class="info">Attendance tracking starts on ${esc(startDate)}. No absence list until then.</div>`;
+    absentCopyText = "";
+    return;
+  }
+
+  const { data: hol, error: holErr } = await supa.from("school_holidays").select("reason").eq("holiday_date", day);
+  if(holErr){ box.innerHTML = `<div class="empty">${esc(holErr.message)}</div>`; return; }
+  if(hol && hol.length){
+    box.innerHTML = `<div class="info">Today is a holiday (${esc(hol[0].reason)}). No attendance is expected.</div>`;
+    absentCopyText = "";
+    return;
+  }
+
+  const students = cache.students.filter(st => st.registered !== false);
+  if(students.length === 0){
+    box.innerHTML = '<div class="empty">No students yet.</div>';
+    absentCopyText = "";
+    return;
+  }
+
+  const { data: att, error } = await supa.from("attendance").select("student_id")
+    .eq("attendance_date", day).in("student_id", students.map(st => st.id));
+  if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+
+  const present = new Set((att || []).map(a => Number(a.student_id)));
+  const absent = students.filter(st => !present.has(st.id));
+
+  if(absent.length === 0){
+    box.innerHTML = `<div class="info">Everyone has been scanned today (${students.length} students).</div>`;
+    absentCopyText = "";
+    return;
+  }
+
+  // Group the absent students by class, in class order
+  const byClass = {};
+  absent.forEach(st => {
+    const klass = cache.classes.find(c => c.id === Number(st.class_id));
+    const name = klass ? klass.name : "No class";
+    (byClass[name] = byClass[name] || []).push(st);
+  });
+  const classNames = Object.keys(byClass).sort();
+
+  absentCopyText = `Absent today (${day}): ${absent.length} of ${students.length} students\n\n` +
+    classNames.map(name =>
+      `${name}\n` + byClass[name].sort((a, b) => a.full_name.localeCompare(b.full_name))
+        .map(st => `  - ${st.full_name} (${st.admission_no || "no ID"})`).join("\n")
+    ).join("\n\n");
+
+  box.innerHTML = `<div style="font-weight:700;margin-bottom:8px">${absent.length} of ${students.length} students not scanned yet</div>` +
+    classNames.map(name => `
+      <div style="margin-bottom:10px">
+        <strong>${esc(name)}</strong> <small style="color:#6b7785">(${byClass[name].length})</small>
+        <ul style="margin:4px 0 0 18px;padding:0">
+          ${byClass[name].sort((a, b) => a.full_name.localeCompare(b.full_name))
+            .map(st => `<li>${esc(st.full_name)} <small style="color:#6b7785">${esc(st.admission_no || "")}</small></li>`).join("")}
+        </ul>
+      </div>`).join("");
+}
+
+$("copyAbsentBtn").onclick = async () => {
+  if(!absentCopyText){ toast("There is no absence list to copy."); return; }
+  try{
+    await navigator.clipboard.writeText(absentCopyText);
+    toast("Absence list copied.");
+  }catch(e){
+    toast("Could not copy automatically. Select the list and copy it by hand.");
+  }
+};
 
 async function refreshTicketBadge(){
   const { count } = await supa.from("help_desk_tickets")
@@ -4843,7 +4980,8 @@ function youtubeId(url){
 }
 
 async function renderAsgAdmin(){
-  $("asgClass").innerHTML = cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("asgClassBox").innerHTML = cache.classes.map(c =>
+    `<label style="display:block;font-size:14px;margin:4px 0"><input type="checkbox" class="asg-class-cb" value="${c.id}" style="width:auto;margin-right:6px">${esc(c.name)}</label>`).join("");
   $("asgSubject").innerHTML = cache.subjects.slice().sort((a, b) => a.name.localeCompare(b.name))
     .map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
   renderAsgList();
@@ -4853,32 +4991,50 @@ async function renderAsgAdmin(){
 $("asgCreateBtn").onclick = async () => {
   const title = $("asgTitle").value.trim();
   const url = $("asgVideo").value.trim();
+  const classIds = [...document.querySelectorAll(".asg-class-cb:checked")].map(cb => Number(cb.value));
+  if(classIds.length === 0){ toast("Choose at least one class."); return; }
+  if(classIds.length > 5){ toast("You can choose up to 5 classes at a time."); return; }
   if(!title){ toast("Enter a title."); return; }
   if(url && !youtubeId(url)){ toast("That does not look like a YouTube link."); return; }
 
-  const { error } = await supa.from("assignments").insert({
-    class_id: Number($("asgClass").value), subject_id: Number($("asgSubject").value),
+  const { data: made, error } = await supa.from("assignments").insert({
+    class_id: classIds[0], subject_id: Number($("asgSubject").value),
     session: cache.settings.session, term: cache.settings.term, title,
     video_url: url || null, instructions: $("asgInstr").value.trim() || null,
     is_open: false,
     opens_at: $("asgOpens").value ? new Date($("asgOpens").value).toISOString() : null,
     closes_at: $("asgCloses").value ? new Date($("asgCloses").value).toISOString() : null,
-    questions_per_student: Number($("asgPerStudent").value) || 10
-  });
+    questions_per_student: Number($("asgPerStudent").value) || 10,
+    time_limit_minutes: $("asgTimeLimit").value ? Number($("asgTimeLimit").value) : null
+  }).select().single();
   if(error){ toast(error.message); return; }
-  ["asgTitle","asgVideo","asgInstr","asgOpens","asgCloses"].forEach(id => $(id).value = "");
-  toast("Assignment created. Add questions, then open it.");
+
+  const { error: linkErr } = await supa.from("assignment_classes").insert(
+    classIds.map(cid => ({ assignment_id: made.id, class_id: cid }))
+  );
+  if(linkErr){ toast(linkErr.message); return; }
+
+  ["asgTitle","asgVideo","asgInstr","asgOpens","asgCloses","asgTimeLimit"].forEach(id => $(id).value = "");
+  document.querySelectorAll(".asg-class-cb").forEach(cb => cb.checked = false);
+  toast(`Assignment created for ${classIds.length} class(es). Add questions, then open it.`);
   renderAsgList();
 };
 
 async function renderAsgList(){
   const box = $("asgList");
-  const { data, error } = await supa.from("assignments").select("*").order("created_at", { ascending: false });
+  const [{ data, error }, links] = await Promise.all([
+    supa.from("assignments").select("*").order("created_at", { ascending: false }),
+    supa.from("assignment_classes").select("assignment_id,class_id")
+  ]);
   if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
   if(!data || data.length === 0){ box.innerHTML = '<div class="empty">No assignments yet.</div>'; return; }
 
+  const classNamesFor = aid => (links.data || []).filter(l => Number(l.assignment_id) === aid)
+    .map(l => { const c = cache.classes.find(x => x.id === Number(l.class_id)); return c ? c.name : ""; })
+    .filter(Boolean).join(", ");
+
   box.innerHTML = data.map(a => {
-    const klass = cache.classes.find(c => c.id === Number(a.class_id));
+    const klass = { name: classNamesFor(a.id) || (cache.classes.find(c => c.id === Number(a.class_id)) || {}).name };
     const subject = cache.subjects.find(s => s.id === Number(a.subject_id));
     const st = examStatus(a);
     return `<div class="student-card" style="align-items:flex-start">
@@ -5085,6 +5241,7 @@ function refreshAttendance(){
 
 // Days of a month (YYYY-MM) that are school days: Monday to Friday
 function attMonthRange(ym){
+  const startDate = (cache.settings && cache.settings.attendance_start) || null;
   const [y, m] = ym.split("-").map(Number);
   const last = new Date(y, m, 0).getDate();
   const days = [];
@@ -5093,7 +5250,8 @@ function attMonthRange(ym){
     if(wd >= 1 && wd <= 5) days.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
   const monthLabel = new Date(y, m - 1, 1).toLocaleString("en-GB", { month: "long", year: "numeric" });
-  return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, "0")}`, days, monthLabel };
+  const counted = startDate ? days.filter(d => d >= startDate) : days;
+  return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, "0")}`, days: counted, monthLabel, startDate };
 }
 
 // Returns a Set of "studentId|date" for every mark in the range, or null if the query failed
@@ -5120,15 +5278,16 @@ async function loadHolidays(range){
 async function renderHolidayPanel(range){
   const hol = await loadHolidays(range);
   if(!hol) return;
-  $("attHolidayList").innerHTML = range.days.map(d => {
+  const dayName = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+  $("attHolidayList").innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px">${range.days.map(d => {
     const reason = hol.get(d);
-    return `<div class="student-card" style="align-items:center">
-      <span><strong>${esc(d)}</strong> ${reason
-        ? `<span class="tag demo">HOLIDAY</span> <small>${esc(reason)}</small>`
-        : '<small style="color:var(--muted)">School day</small>'}</span>
-      <button class="btn ${reason ? "secondary" : "gold"} att-hol-btn" data-d="${d}" data-on="${reason ? "1" : "0"}">${reason ? "Undo holiday" : "Mark holiday"}</button>
-    </div>`;
-  }).join("");
+    return `<button class="att-hol-btn" data-d="${d}" data-on="${reason ? "1" : "0"}" title="${esc(reason || "Tap to mark as holiday")}"
+      style="padding:8px 4px;border-radius:8px;border:1px solid ${reason ? "#c9a227" : "#d9dee5"};background:${reason ? "#fff4d6" : "#f7f9fc"};color:${reason ? "#8a5a00" : "#1d2733"};cursor:pointer;text-align:center;font:inherit">
+      <div style="font-weight:700">${Number(d.slice(8))}</div>
+      <div style="font-size:12px">${dayName(d)}</div>
+      <div style="font-size:11px;font-weight:700;min-height:14px">${reason ? "HOLIDAY" : ""}</div>
+    </button>`;
+  }).join("")}</div>`;
 
   $("attHolidayList").querySelectorAll(".att-hol-btn").forEach(btn => {
     btn.onclick = async () => {
@@ -5366,37 +5525,42 @@ $("shrinkPhotosBtn").onclick = async () => {
   const btn = $("shrinkPhotosBtn");
   const status = $("shrinkStatus");
   btn.disabled = true;
-  status.textContent = "Loading photos…";
+  status.textContent = "Finding students with photos…";
 
-  const { data, error } = await supa.from("students").select("id,passport_photo").not("passport_photo", "is", null);
+  // Step 1: list only the IDs (small), so the request is quick
+  const { data: ids, error } = await supa.from("students").select("id").not("passport_photo", "is", null);
   if(error){ status.textContent = error.message; btn.disabled = false; return; }
-
-  // Only photos that are clearly large need shrinking (about 60 KB or more)
-  const big = (data || []).filter(st => st.passport_photo.length > 60000);
-  if(big.length === 0){
-    status.textContent = "All stored photos are already small.";
+  const list = ids || [];
+  if(list.length === 0){
+    status.textContent = "No student has a stored photo.";
     btn.disabled = false;
     return;
   }
 
-  let done = 0, failed = 0, savedKb = 0;
-  for(let i = 0; i < big.length; i++){
-    const st = big[i];
-    status.textContent = `Shrinking photo ${i + 1} of ${big.length}…`;
+  // Step 2: one photo at a time, so no single request is too large
+  let shrunk = 0, skipped = 0, failed = 0, savedKb = 0;
+  for(let i = 0; i < list.length; i++){
+    status.textContent = `Checking photo ${i + 1} of ${list.length}…`;
     try{
-      const small = await shrinkDataUrl(st.passport_photo);
-      if(small.length < st.passport_photo.length){
-        const { error: e } = await supa.from("students").update({ passport_photo: small }).eq("id", st.id);
-        if(e) throw new Error(e.message);
-        savedKb += (st.passport_photo.length - small.length) / 1024;
-      }
-      done++;
+      const { data: row, error: rowErr } = await supa.from("students").select("passport_photo").eq("id", list[i].id).single();
+      if(rowErr) throw new Error(rowErr.message);
+      const photo = row && row.passport_photo;
+      if(!photo || photo.length <= 60000){ skipped++; continue; }
+
+      status.textContent = `Shrinking photo ${i + 1} of ${list.length}…`;
+      const small = await shrinkDataUrl(photo);
+      if(small.length >= photo.length){ skipped++; continue; }
+
+      const { error: upErr } = await supa.from("students").update({ passport_photo: small }).eq("id", list[i].id);
+      if(upErr) throw new Error(upErr.message);
+      savedKb += (photo.length - small.length) / 1024;
+      shrunk++;
     }catch(e){
       failed++;
     }
   }
 
-  status.textContent = `Done: ${done} photo(s) shrunk${failed ? `, ${failed} could not be shrunk` : ""}. About ${Math.round(savedKb)} KB saved.`;
+  status.textContent = `Done: ${shrunk} shrunk, ${skipped} already small, ${failed} failed. About ${Math.round(savedKb)} KB saved.`;
   btn.disabled = false;
 };
 
@@ -5697,6 +5861,7 @@ function fillSettingsForm(){
   initSessionOptions();
   $("setName").value = s.school_name;
   $("setAboutEnabled").checked = s.about_enabled !== false;
+  $("setAttStart").value = s.attendance_start || "";
   $("setVision").value = s.vision || "";
   $("setMission").value = s.mission || "";
   $("setAnthem").value = s.anthem_text || "";
@@ -5729,6 +5894,7 @@ $("saveSettingsBtn").onclick = async function(){
     teacher_title: $("teacherTitle").value.trim(),
     teacher_name: $("teacherName").value.trim(),
     about_enabled: $("setAboutEnabled").checked,
+    attendance_start: $("setAttStart").value || null,
     vision: $("setVision").value.trim() || null,
     mission: $("setMission").value.trim() || null,
     anthem_text: $("setAnthem").value.trim() || null,
@@ -5923,7 +6089,8 @@ $("tAsgOpenBtn").onclick = async () => {
   show($("tAsgCard"), true);
   show($("tAsgManage"), false);
   // Class and subject choices come from the teacher's own assignments only
-  $("tAsgPair").innerHTML = tAssignments.map((a, i) => `<option value="${i}">${esc(a.class)} · ${esc(a.subject)}</option>`).join("");
+  $("tAsgPair").innerHTML = tAssignments.map((a, i) =>
+    `<label style="display:block;font-size:14px;margin:4px 0"><input type="checkbox" class="t-pair-cb" value="${i}" style="width:auto;margin-right:6px">${esc(a.class)} · ${esc(a.subject)}</label>`).join("");
   await tLoadAsgList();
 };
 
@@ -5951,24 +6118,28 @@ async function tLoadAsgList(){
 }
 
 $("tAsgCreateBtn").onclick = async () => {
-  const pair = tAssignments[Number($("tAsgPair").value)];
+  const chosen = [...document.querySelectorAll(".t-pair-cb:checked")].map(cb => tAssignments[Number(cb.value)]);
   const title = $("tAsgTitle").value.trim();
   const video = $("tAsgVideo").value.trim();
-  if(!pair){ tBanner($("tAsgMsg"), "Choose a class and subject.", false); return; }
+  if(chosen.length === 0){ tBanner($("tAsgMsg"), "Choose at least one class.", false); return; }
+  if(chosen.length > 5){ tBanner($("tAsgMsg"), "You can choose up to 5 classes at a time.", false); return; }
+  if(new Set(chosen.map(x => x.subject_id)).size > 1){ tBanner($("tAsgMsg"), "Choose classes that share the same subject.", false); return; }
   if(!title){ tBanner($("tAsgMsg"), "Enter a title.", false); return; }
   if(video && !youtubeId(video)){ tBanner($("tAsgMsg"), "That does not look like a YouTube link.", false); return; }
 
   const { data, error } = await supa.rpc("teacher_asg_create", {
     p_username: tTeacher.username, p_pin: tTeacher.pin,
-    p_class: pair.class_id, p_subject: pair.subject_id, p_title: title, p_video: video || null,
-    p_instructions: null, p_opens: null, p_closes: null, p_per: Number($("tAsgPer").value) || 10
+    p_classes: chosen.map(x => x.class_id), p_subject: chosen[0].subject_id,
+    p_title: title, p_video: video || null, p_instructions: null, p_opens: null, p_closes: null,
+    p_per: Number($("tAsgPer").value) || 10, p_time: Number($("tAsgTime").value) || null
   });
   if(error || !data || data.error){
     tBanner($("tAsgMsg"), (data && data.error) || (error && error.message) || "Could not create the assignment.", false);
     return;
   }
-  $("tAsgTitle").value = ""; $("tAsgVideo").value = "";
-  tBanner($("tAsgMsg"), "Assignment created. Add questions, then open it for students.", true);
+  $("tAsgTitle").value = ""; $("tAsgVideo").value = ""; $("tAsgTime").value = "";
+  document.querySelectorAll(".t-pair-cb").forEach(cb => cb.checked = false);
+  tBanner($("tAsgMsg"), `Assignment created for ${chosen.length} class(es). Add questions, then open it.`, true);
   await tLoadAsgList();
 };
 
