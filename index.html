@@ -3029,6 +3029,11 @@ let absentCopyText = "";
 async function loadAbsentToday(){
   const box = $("absentToday");
   const day = todayLagos();
+  if(isWeekendDay(day)){
+    box.innerHTML = '<div class="info">Today is a weekend. There is no school, so there is no absence list.</div>';
+    absentCopyText = "";
+    return;
+  }
   const startDate = cache.settings && cache.settings.attendance_start;
   if(startDate && day < startDate){
     box.innerHTML = `<div class="info">Attendance tracking starts on ${esc(startDate)}. No absence list until then.</div>`;
@@ -5166,10 +5171,21 @@ async function renderAttendanceView(){
   setAttTab(attTab);
 }
 
+// True for Saturday and Sunday. These are not school days.
+function isWeekendDay(d){
+  const wd = new Date(d + "T00:00:00").getDay();
+  return wd === 0 || wd === 6;
+}
+
 async function drawAttendance(){
   const classId = Number($("attClassSelect").value);
   const day = $("attDate").value;
   const box = $("attList");
+  if(day && isWeekendDay(day)){
+    $("attSummary").textContent = "";
+    box.innerHTML = `<div class="info">${esc(day)} is a weekend. There is no school, so no attendance is recorded.</div>`;
+    return;
+  }
   if(!classId || !day){
     $("attSummary").textContent = "";
     box.innerHTML = '<div class="empty">Choose a class and a date.</div>';
