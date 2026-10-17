@@ -2608,7 +2608,7 @@ $("studentLogoutBtn").onclick = function(){
   studentSession = null;
   studentLoginData = null;
   $("studentReportView").classList.add("hidden");
-  $("studentIdInput").value = "";
+  $("studentIdInput").value = "OLAS";
   $("studentSurnameInput").value = "";
   $("landingShell").classList.remove("hidden");
   switchLandingTab("home");
@@ -6360,6 +6360,9 @@ $("tLogoutBtn").onclick = () => {
   $("tUsername").value = ""; $("tPin").value = "";
   show($("tLoginCard"), true);
 };
+
+// The school prefix is already in the Student ID box. Students type only the rest.
+$("studentIdInput").value = "OLAS";
 
 checkSession();
 </script>
