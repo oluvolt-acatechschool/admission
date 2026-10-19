@@ -714,6 +714,20 @@ h2,h3{color:var(--nav);margin-top:0}
       <h2>Student Management</h2>
 
       <div class="subcard" style="margin-bottom:14px">
+        <h3>Portal Restriction</h3>
+        <div class="info">A flagged student can still sign in, but can only see and update their bio data. Exams, assignments, results, materials and everything else are blocked until you lift the flag.</div>
+        <div class="formgrid" style="margin-top:8px">
+          <div class="field"><label for="resStudent">Student</label><select id="resStudent"></select></div>
+          <div class="field"><label for="resReason">Reason (shown to the student)</label><input id="resReason" type="text" placeholder="e.g. Fee balance"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button id="resFlagBtn" class="btn danger">Flag student</button>
+          <button id="resLiftBtn" class="btn success">Lift restriction</button>
+        </div>
+        <div id="resList" style="margin-top:10px"></div>
+      </div>
+
+      <div class="subcard" style="margin-bottom:14px">
         <h3>Photo Storage</h3>
         <div class="info">Photos saved before compression are very large, which slows the gate scanner and student profiles. This shrinks them to the same size as new uploads. Photos that are already small are left alone.</div>
         <button id="shrinkPhotosBtn" class="btn primary" style="margin-top:8px">Shrink stored photos</button>
@@ -1507,6 +1521,9 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="field"><label>Class Teacher's Name</label><input id="teacherName"></div>
       </div>
 
+      <h3>Score Release</h3>
+      <div class="field"><label for="setReleaseDelay">Show test and assignment scores to students after (minutes)</label><input id="setReleaseDelay" type="number" min="0" value="30"></div>
+
       <h3>Attendance Tracking</h3>
       <div class="field"><label for="setAttStart">Attendance counts start on</label><input id="setAttStart" type="date"></div>
       <div class="info" style="margin-bottom:8px">Days before this date are left out of attendance counts, registers and the absence list.</div>
@@ -1767,6 +1784,14 @@ $("studentLoginBtn").onclick = async function(){
   prefillBioForm();
   $("landingShell").classList.add("hidden");
   $("studentReportView").classList.remove("hidden");
+
+  if(data.restricted){
+    document.querySelectorAll(".student-nav-card").forEach(b => { if(b.dataset.sview !== "biodata") b.classList.add("hidden"); });
+    toast("Your portal access is restricted. You can view and update your bio data. " + (data.restriction_reason ? "Reason: " + data.restriction_reason : "Please contact the school admin."));
+    showStudentView("biodata");
+    return;
+  }
+  document.querySelectorAll(".student-nav-card").forEach(b => b.classList.remove("hidden"));
 
   if(data.must_set_password){
     $("defaultPasswordWarning").classList.remove("hidden");
@@ -2140,7 +2165,7 @@ async function renderUpcoming(){
   const asgHtml = asg.length ? asg.map(a => {
     if(a.submitted){
       return card(a, a.subject, { cls: "live", label: "SUBMITTED" },
-        `<span><strong>${a.raw_score}/${a.max_score}</strong></span>`);
+        (a.released ? `<span><strong>${a.raw_score}/${a.max_score}</strong></span>` : "<span><small>Score pending</small></span>"));
     }
     const status = a.state === "scheduled" ? { cls: "demo", label: "OPENS LATER" } : { cls: "live", label: "OPEN NOW" };
     const action = a.state === "scheduled" ? ""
@@ -2185,7 +2210,7 @@ async function renderStudentAssignments(){
   box.innerHTML = list.map(a => {
     const closes = a.closes_at ? ` · closes ${new Date(a.closes_at).toLocaleString()}` : "";
     const action = a.submitted
-      ? `<span><strong>${a.raw_score}/${a.max_score}</strong> submitted</span>`
+      ? (a.released ? `<span><strong>${a.raw_score}/${a.max_score}</strong> submitted</span>` : "<span><small>Submitted. Score pending</small></span>")
       : `<button class="btn primary stu-asg-start" data-id="${a.id}">Start</button>`;
     return `<div class="student-card">
       <span><strong>${esc(a.title)}</strong> <span class="tag">${esc(a.subject)}</span>
@@ -2323,7 +2348,7 @@ async function submitStudentAssignment(auto){
   }
   stuAsg.done = true;
   clearInterval(stuAsgTimerId);
-  $("stuAsgMsg").textContent = `Submitted. Your score: ${data.raw_score} / ${data.max_score}.`;
+  $("stuAsgMsg").textContent = `Submitted. Your score will be available on ${new Date(data.released_at).toLocaleString()}.`;
   $("stuAsgMsg").classList.remove("hidden");
   $("stuAsgSubmit").classList.add("hidden");
   $("stuAsgNext").classList.add("hidden");
@@ -2618,6 +2643,7 @@ $("studentPrintBtn").onclick = () => window.print();
 
 /* ================= STUDENT PORTAL: NAV CARDS ================= */
 function showStudentView(name){
+  window.studentView = name;
   window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   document.querySelectorAll(".sview").forEach(v => v.classList.add("hidden"));
   $("sview-" + name).classList.remove("hidden");
@@ -2847,7 +2873,7 @@ async function loadAll(){
     supa.from("classes").select("*").order("name"),
     supa.from("subjects").select("*").order("name"),
     supa.from("class_subjects").select("*"),
-    supa.from("students").select("id,full_name,surname,class_id,admission_no,is_demo,registered,card_token,password_hash,failed_login_attempts,locked_until,date_of_birth,gender,home_address,student_phone,father_name,father_phone,father_occupation,mother_name,mother_phone,mother_occupation,previous_school,previous_class").order("full_name"),
+    supa.from("students").select("id,full_name,surname,class_id,admission_no,is_demo,registered,card_token,portal_restricted,restriction_reason,password_hash,failed_login_attempts,locked_until,date_of_birth,gender,home_address,student_phone,father_name,father_phone,father_occupation,mother_name,mother_phone,mother_occupation,previous_school,previous_class").order("full_name"),
     supa.from("score_ranges").select("*")
   ]);
 
@@ -2914,7 +2940,7 @@ function showView(name){
     b.classList.toggle("active", b.dataset.view === name);
   });
   if(name === "dashboard") updateDashboard();
-  if(name === "students") renderStudents();
+  if(name === "students") { renderStudents(); renderRestrictionPanel(); }
   if(name === "directory") renderDirectory();
   if(name === "scores") renderScoresTable();
   if(name === "reports") { updateStudentSelect(); loadExtrasForSelectedStudent(); }
@@ -5144,15 +5170,33 @@ $("asgBulkBtn").onclick = async () => {
 };
 
 async function renderAsgSubmissions(){
-  const { data } = await supa.from("assignment_submissions").select("student_id,raw_score,max_score,submitted_at")
+  const { data } = await supa.from("assignment_submissions").select("id,student_id,raw_score,max_score,submitted_at,score_overridden")
     .eq("assignment_id", asgManageId).not("submitted_at", "is", null)
     .order("submitted_at", { ascending: false });
   const tbody = $("asgSubTable").querySelector("tbody");
   if(!data || data.length === 0){ tbody.innerHTML = '<tr><td colspan="3" class="empty">No submissions yet.</td></tr>'; return; }
+
   tbody.innerHTML = data.map(r => {
     const st = cache.students.find(x => x.id === Number(r.student_id));
-    return `<tr><td>${esc(st ? st.full_name : "Unknown")}</td><td>${r.raw_score}/${r.max_score}</td><td>${esc(new Date(r.submitted_at).toLocaleString())}</td></tr>`;
+    return `<tr><td>${esc(st ? st.full_name : "Unknown")}</td>
+      <td><input type="number" class="ovr-in" data-id="${r.id}" min="0" max="${r.max_score}" value="${r.raw_score}" style="width:64px;padding:4px"> / ${r.max_score}
+        <button class="btn secondary ovr-btn" data-id="${r.id}" data-max="${r.max_score}" style="padding:4px 8px;font-size:12px;margin-left:4px">Save</button>
+        ${r.score_overridden ? '<small style="color:#8a5a00"> overridden</small>' : ""}</td>
+      <td>${esc(new Date(r.submitted_at).toLocaleString())}</td></tr>`;
   }).join("");
+
+  tbody.querySelectorAll(".ovr-btn").forEach(btn => {
+    btn.onclick = async () => {
+      const id = Number(btn.dataset.id), max = Number(btn.dataset.max);
+      const val = Number(tbody.querySelector(`.ovr-in[data-id="${id}"]`).value);
+      if(!Number.isInteger(val) || val < 0 || val > max){ toast(`Score must be between 0 and ${max}.`); return; }
+      const { error } = await supa.from("assignment_submissions")
+        .update({ raw_score: val, score_overridden: true, release_at: new Date().toISOString() }).eq("id", id);
+      if(error){ toast(error.message); return; }
+      toast("Score updated. The student sees it now.");
+      renderAsgSubmissions();
+    };
+  });
 }
 
 /* ================= ATTENDANCE (admin) ================= */
@@ -5514,6 +5558,33 @@ $("taAddBtn").onclick = async () => {
   toast("Assignment added.");
   renderTeaching();
 };
+
+/* ================= PORTAL RESTRICTION (admin) ================= */
+function renderRestrictionPanel(){
+  const sorted = cache.students.slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
+  $("resStudent").innerHTML = sorted.map(st =>
+    `<option value="${st.id}">${esc(st.full_name)} (${esc(st.admission_no || "")})${st.portal_restricted ? " · FLAGGED" : ""}</option>`).join("");
+  const flagged = cache.students.filter(st => st.portal_restricted);
+  $("resList").innerHTML = flagged.length
+    ? flagged.map(st => `<div class="student-card"><span><strong>${esc(st.full_name)}</strong> <span class="tag demo">FLAGGED</span>
+        <br><small style="color:var(--muted)">${esc(st.restriction_reason || "No reason given")}</small></span></div>`).join("")
+    : '<div class="empty">No students are flagged.</div>';
+}
+
+async function setRestriction(on){
+  const id = Number($("resStudent").value);
+  if(!id){ toast("Choose a student."); return; }
+  const reason = on ? ($("resReason").value.trim() || "Restricted by the school") : null;
+  const { error } = await supa.from("students").update({ portal_restricted: on, restriction_reason: reason }).eq("id", id);
+  if(error){ toast(error.message); return; }
+  const st = cache.students.find(x => x.id === id);
+  if(st){ st.portal_restricted = on; st.restriction_reason = reason; }
+  $("resReason").value = "";
+  toast(on ? "Student flagged. Only bio data is available to them." : "Restriction lifted.");
+  renderRestrictionPanel();
+}
+$("resFlagBtn").onclick = () => setRestriction(true);
+$("resLiftBtn").onclick = () => setRestriction(false);
 
 /* ================= PHOTO SHRINKING (admin) ================= */
 // Resizes a stored photo (as a data address) to at most 320 px, saved as a compressed JPEG
@@ -5878,6 +5949,7 @@ function fillSettingsForm(){
   $("setName").value = s.school_name;
   $("setAboutEnabled").checked = s.about_enabled !== false;
   $("setAttStart").value = s.attendance_start || "";
+  $("setReleaseDelay").value = s.release_delay_minutes ?? 30;
   $("setVision").value = s.vision || "";
   $("setMission").value = s.mission || "";
   $("setAnthem").value = s.anthem_text || "";
@@ -5911,6 +5983,7 @@ $("saveSettingsBtn").onclick = async function(){
     teacher_name: $("teacherName").value.trim(),
     about_enabled: $("setAboutEnabled").checked,
     attendance_start: $("setAttStart").value || null,
+    release_delay_minutes: Number($("setReleaseDelay").value) || 0,
     vision: $("setVision").value.trim() || null,
     mission: $("setMission").value.trim() || null,
     anthem_text: $("setAnthem").value.trim() || null,
@@ -6379,6 +6452,14 @@ $("tLogoutBtn").onclick = () => {
 
 // The school prefix is already in the Student ID box. Students type only the rest.
 $("studentIdInput").value = "OLAS";
+
+// Keeps the open student screen up to date, so approved and overridden scores appear without a reload
+setInterval(() => {
+  if(!studentSession) return;
+  if(window.studentView === "upcoming") renderUpcoming();
+  if(window.studentView === "results" && $("studentReportContent").classList.contains("hidden")) renderPublishedResultsList();
+  if(window.studentView === "assignments" && $("stuAsgTake").classList.contains("hidden")) renderStudentAssignments();
+}, 60000);
 
 checkSession();
 </script>
