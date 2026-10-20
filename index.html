@@ -991,7 +991,8 @@ h2,h3{color:var(--nav);margin-top:0}
       <div class="formgrid">
         <div class="field">
           <label for="examClassSelect">Class</label>
-          <select id="examClassSelect"></select>
+          <select id="examClassSelect" class="hidden"></select>
+          <div id="examClassBox" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:170px;overflow:auto"></div>
         </div>
         <div class="field">
           <label for="examSubjectSelect">Subject</label>
@@ -1010,6 +1011,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="field"><label for="examOpens">Opens at (optional)</label><input id="examOpens" type="datetime-local"></div>
         <div class="field"><label for="examCloses">Closes at (optional)</label><input id="examCloses" type="datetime-local"></div>
       </div>
+      <div class="field" style="margin-top:8px"><label for="examPerStudent">Questions per student (blank = all questions)</label><input id="examPerStudent" type="number" min="1" placeholder="e.g. 15"></div>
       <button id="createExamBtn" class="btn primary" style="margin-top:8px">Create Exam</button>
 
       <h3 style="margin-top:20px">Existing Exams</h3>
@@ -1031,6 +1033,14 @@ h2,h3{color:var(--nav);margin-top:0}
 
       <div id="examDetailPanel" class="hidden" style="margin-top:20px">
         <div class="info" id="examDetailTitle"></div>
+
+        <div class="subcard" style="margin-top:10px">
+          <h4>Bulk import questions</h4>
+          <div class="info">Paste all the questions at once. Format: <code>Q:</code>, <code>A:</code>, <code>B:</code>, <code>C:</code>, <code>D:</code>, <code>ANSWER:</code>, optional <code>MARKS:</code>, and <code>---</code> between questions.</div>
+          <textarea id="examBulkText" rows="10" style="width:100%;padding:11px;border:1px solid #bfc6cc;border-radius:7px;font-family:monospace;font-size:13px"></textarea>
+          <button id="examBulkBtn" class="btn primary" style="margin-top:8px">Import questions</button>
+          <div id="examBulkError" class="warn hidden" style="margin-top:8px"></div>
+        </div>
 
         <h4>Add Question</h4>
         <div class="field"><label for="qText">Question</label><input id="qText" type="text"></div>
@@ -2946,7 +2956,7 @@ function showView(name){
   if(name === "reports") { updateStudentSelect(); loadExtrasForSelectedStudent(); }
   if(name === "ranges") renderRanges();
   if(name === "history") { renderHistory(); refreshPublishClasses(); renderBatches(); offShowStatus(); }
-  if(name === "exams") { updateExamSubjectSelect(); renderExamList(); }
+  if(name === "exams") { updateExamSubjectSelect(); renderExamClassBox(); renderExamList(); }
   if(name === "cbt") { updateCbtSubjectSelect(); renderCbtList(); }
   if(name === "notices") renderNoticesAdmin();
   if(name === "cards") renderCardsView();
@@ -4182,26 +4192,37 @@ function updateExamSubjectSelect(){
 }
 $("examClassSelect").onchange = updateExamSubjectSelect;
 
+function renderExamClassBox(){
+  $("examClassBox").innerHTML = cache.classes.map(c =>
+    `<label style="display:block;font-size:14px;margin:4px 0"><input type="checkbox" class="exam-class-cb" value="${c.id}" style="width:auto;margin-right:6px">${esc(c.name)}</label>`).join("");
+}
+
 $("createExamBtn").onclick = async function(){
-  const classId = Number($("examClassSelect").value);
+  const classIds = [...document.querySelectorAll(".exam-class-cb:checked")].map(cb => Number(cb.value));
+  if(classIds.length === 0){ toast("Choose at least one class."); return; }
+  if(classIds.length > 5){ toast("You can choose up to 5 classes at a time."); return; }
   const subjectId = Number($("examSubjectSelect").value);
   const title = $("examTitle").value.trim();
   const duration = $("examDuration").value ? Number($("examDuration").value) : null;
+  const perStudent = $("examPerStudent").value ? Number($("examPerStudent").value) : null;
   if(!title){ toast("Enter a title for the exam."); return; }
 
-  const { data, error } = await supa.from("exams").insert({
-    class_id: classId, subject_id: subjectId, title, duration_minutes: duration,
+  const { data: made, error } = await supa.from("exams").insert({
+    class_id: classIds[0], subject_id: subjectId, title, duration_minutes: duration,
+    questions_per_student: perStudent,
     session: cache.settings.session, term: cache.settings.term, is_open: false,
     opens_at: $("examOpens").value ? new Date($("examOpens").value).toISOString() : null,
     closes_at: $("examCloses").value ? new Date($("examCloses").value).toISOString() : null
   }).select().single();
-
   if(error){ toast(error.message); return; }
-  $("examTitle").value = "";
-  $("examDuration").value = "";
-  $("examOpens").value = "";
-  $("examCloses").value = "";
-  toast("Exam created. Add questions, then open it for students.");
+
+  const { error: linkErr } = await supa.from("exam_classes").insert(
+    classIds.map(cid => ({ exam_id: made.id, class_id: cid })));
+  if(linkErr){ toast(linkErr.message); return; }
+
+  ["examTitle","examDuration","examPerStudent","examOpens","examCloses"].forEach(id => $(id).value = "");
+  document.querySelectorAll(".exam-class-cb").forEach(cb => cb.checked = false);
+  toast(`Exam created for ${classIds.length} class(es). Add questions, then open it for students.`);
   renderExamList();
 };
 
@@ -4265,16 +4286,21 @@ async function renderExamList(){
   if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
   if(!data || data.length === 0){ box.innerHTML = '<div class="empty">No exams yet this term.</div>'; return; }
 
+  const { data: links } = await supa.from("exam_classes").select("exam_id,class_id");
+  const classNamesFor = eid => (links || []).filter(l => Number(l.exam_id) === eid)
+    .map(l => { const c = cache.classes.find(x => x.id === Number(l.class_id)); return c ? c.name : ""; })
+    .filter(Boolean).join(", ");
+
   box.innerHTML = "";
   data.forEach(exam => {
-    const klass = cache.classes.find(c => c.id === Number(exam.class_id));
+    const classLabel = classNamesFor(exam.id) || (cache.classes.find(c => c.id === Number(exam.class_id)) || {}).name || "";
     const subject = cache.subjects.find(s => s.id === Number(exam.subject_id));
     const row = document.createElement("div");
     row.className = "student-card";
     row.innerHTML = `
       <span><strong>${esc(exam.title)}</strong>
         <span class="tag ${examStatus(exam).cls}">${examStatus(exam).label}</span>
-        <br><small style="color:var(--muted)">${esc(klass ? klass.name : '')} · ${esc(subject ? subject.name : '')}${exam.duration_minutes ? ' · ' + exam.duration_minutes + ' min' : ' · No time limit'}${windowText(exam)}</small>
+        <br><small style="color:var(--muted)">${esc(classLabel)} · ${esc(subject ? subject.name : '')}${exam.duration_minutes ? ' · ' + exam.duration_minutes + ' min' : ' · No time limit'}${windowText(exam)}</small>
       </span>
       <span>
         <button class="btn secondary window-btn">Window</button>
@@ -4308,6 +4334,33 @@ async function renderQuestionsTable(){
     `<tr><td>${i+1}</td><td>${esc(q.question_text)}</td><td>${q.correct_option.toUpperCase()}</td><td>${q.marks}</td></tr>`
   ).join("") || '<tr><td colspan="4" class="empty">No questions yet.</td></tr>';
 }
+
+$("examBulkBtn").onclick = async function(){
+  show($("examBulkError"), false);
+  if(!currentExamId){ toast("Open an exam with Manage first."); return; }
+  const text = $("examBulkText").value;
+  if(!text.trim()){ toast("Paste the questions first."); return; }
+
+  const { parsed, errors } = parseBulkQuestions(text);
+  if(errors.length){
+    $("examBulkError").innerHTML = `Found ${errors.length} problem(s), nothing was imported yet:<br>` + errors.map(esc).join("<br>");
+    show($("examBulkError"), true);
+    return;
+  }
+  if(parsed.length === 0){ toast("No valid questions found in that text."); return; }
+
+  // Keep the new questions after any already in the exam
+  const { data: existing } = await supa.from("exam_questions").select("id").eq("exam_id", currentExamId);
+  const start = (existing || []).length;
+  const rows = parsed.map((q, i) => ({ ...q, exam_id: currentExamId, position: start + i }));
+
+  const { error } = await supa.from("exam_questions").insert(rows);
+  if(error){ toast(error.message); return; }
+
+  $("examBulkText").value = "";
+  toast(`Imported ${parsed.length} question(s).`);
+  renderQuestionsTable();
+};
 
 $("addQuestionBtn").onclick = async function(){
   const text = $("qText").value.trim();
