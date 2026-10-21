@@ -418,7 +418,7 @@ h2,h3{color:var(--nav);margin-top:0}
           <span id="examProgress" style="color:var(--muted);font-size:13px"></span>
           <button id="examNextBtn" class="btn primary">Next</button>
         </div>
-        <button id="submitExamBtn" class="btn success hidden" style="margin-top:12px;width:100%">Submit Exam</button>
+        <button id="submitExamBtn" class="btn success" style="margin-top:12px;width:100%">End exam</button>
       </div>
 
       <div id="examDoneBox" class="hidden info" style="margin-top:16px">
@@ -1042,6 +1042,32 @@ h2,h3{color:var(--nav);margin-top:0}
           <div id="examBulkError" class="warn hidden" style="margin-top:8px"></div>
         </div>
 
+        <div class="subcard" style="margin-top:10px">
+          <h4>Exam details</h4>
+          <div class="formgrid">
+            <div class="field"><label for="emTitle">Title</label><input id="emTitle" type="text"></div>
+            <div class="field"><label for="emDuration">Duration (minutes, blank = no limit)</label><input id="emDuration" type="number" min="1"></div>
+            <div class="field"><label for="emPerStudent">Questions per student (blank = all)</label><input id="emPerStudent" type="number" min="1"></div>
+          </div>
+          <button id="emSave" class="btn success" style="margin-top:8px">Save exam details</button>
+        </div>
+
+        <div id="examQEdit" class="subcard hidden" style="margin-top:10px">
+          <h4>Edit question</h4>
+          <input id="eqId" type="hidden">
+          <div class="field"><label for="eqText">Question</label><input id="eqText" type="text"></div>
+          <div class="formgrid" style="margin-top:8px">
+            <div class="field"><label for="eqA">Option A</label><input id="eqA" type="text"></div>
+            <div class="field"><label for="eqB">Option B</label><input id="eqB" type="text"></div>
+            <div class="field"><label for="eqC">Option C</label><input id="eqC" type="text"></div>
+            <div class="field"><label for="eqD">Option D</label><input id="eqD" type="text"></div>
+            <div class="field"><label for="eqCorrect">Correct option</label><select id="eqCorrect"><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select></div>
+            <div class="field"><label for="eqMarks">Marks</label><input id="eqMarks" type="number" min="1"></div>
+          </div>
+          <button id="eqSave" class="btn success" style="margin-top:8px">Save question</button>
+          <button id="eqCancel" class="btn secondary" style="margin-top:8px">Cancel</button>
+        </div>
+
         <h4>Add Question</h4>
         <div class="field"><label for="qText">Question</label><input id="qText" type="text"></div>
         <div class="formgrid" style="margin-top:8px">
@@ -1061,7 +1087,7 @@ h2,h3{color:var(--nav);margin-top:0}
 
         <div class="table-wrap" style="margin-top:14px">
           <table class="data" id="questionsTable">
-            <thead><tr><th>#</th><th>Question</th><th>Correct</th><th>Marks</th></tr></thead>
+            <thead><tr><th>#</th><th>Question</th><th>Correct</th><th>Marks</th><th>Actions</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -2081,7 +2107,7 @@ async function startExam(examId){
       if(secondsLeft <= 0){
         clearInterval(examTimerInterval);
         toast("Time's up — submitting automatically.");
-        doSubmitExam();
+        doSubmitExam(true);
       }
     }, 1000);
   }else{
@@ -2089,15 +2115,26 @@ async function startExam(examId){
   }
 }
 
-async function doSubmitExam(){
-  clearInterval(examTimerInterval);
+let examEndArmed = false;
+
+async function doSubmitExam(auto){
   const examId = Number($("examTakeBox").dataset.examId);
   const answers = {};
   $("examQuestionsBox").querySelectorAll('input[type="radio"]:checked').forEach(input => {
-    const qId = input.name.slice(1); // strip leading "q"
-    answers[qId] = input.value;
+    answers[input.name.slice(1)] = input.value; // strip leading "q"
   });
 
+  // Asks once if questions are unanswered, so the student can go back to them
+  const unanswered = examCardCount - Object.keys(answers).length;
+  if(!auto && unanswered > 0 && !examEndArmed){
+    examEndArmed = true;
+    toast(`${unanswered} question(s) not answered. Press End exam again to finish anyway.`);
+    setTimeout(() => { examEndArmed = false; }, 6000);
+    return;
+  }
+  examEndArmed = false;
+
+  clearInterval(examTimerInterval);
   const { data, error } = await supa.rpc("submit_exam", {
     p_admission_no: examSession.admissionNo, p_password: examSession.password,
     p_exam_id: examId, p_answers: answers
@@ -2112,7 +2149,7 @@ async function doSubmitExam(){
   $("examDoneBox").classList.remove("hidden");
 }
 
-$("submitExamBtn").onclick = doSubmitExam;
+$("submitExamBtn").onclick = () => doSubmitExam(false);
 
 function updateExamCardNav(){
   document.querySelectorAll("#examQuestionsBox .question-card").forEach(card => {
@@ -2123,7 +2160,7 @@ function updateExamCardNav(){
 
   const isLast = examCardIndex === examCardCount - 1;
   $("examNextBtn").classList.toggle("hidden", isLast);
-  $("submitExamBtn").classList.toggle("hidden", !isLast);
+  $("submitExamBtn").classList.remove("hidden");
 }
 
 $("examPrevBtn").onclick = () => {
@@ -2956,7 +2993,7 @@ function showView(name){
   if(name === "reports") { updateStudentSelect(); loadExtrasForSelectedStudent(); }
   if(name === "ranges") renderRanges();
   if(name === "history") { renderHistory(); refreshPublishClasses(); renderBatches(); offShowStatus(); }
-  if(name === "exams") { updateExamSubjectSelect(); renderExamClassBox(); renderExamList(); }
+  if(name === "exams") { renderExamClassBox(); updateExamSubjectSelect(); renderExamList(); }
   if(name === "cbt") { updateCbtSubjectSelect(); renderCbtList(); }
   if(name === "notices") renderNoticesAdmin();
   if(name === "cards") renderCardsView();
@@ -4186,11 +4223,18 @@ $("deleteHistoryBtn").onclick = async function(){
 let currentExamId = null;
 
 function updateExamSubjectSelect(){
-  const classId = Number($("examClassSelect").value || (cache.classes[0] && cache.classes[0].id));
-  const subjects = subjectsForClass(classId);
-  $("examSubjectSelect").innerHTML = subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  const checked = [...document.querySelectorAll(".exam-class-cb:checked")].map(cb => Number(cb.value));
+  const found = new Map();
+  if(checked.length === 0){
+    cache.subjects.forEach(x => found.set(x.id, x));
+  }else{
+    checked.forEach(cid => subjectsForClass(cid).forEach(x => found.set(x.id, x)));
+  }
+  const list = [...found.values()].sort((x, y) => x.name.localeCompare(y.name));
+  $("examSubjectSelect").innerHTML = list.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
 }
 $("examClassSelect").onchange = updateExamSubjectSelect;
+$("examClassBox").onchange = updateExamSubjectSelect;
 
 function renderExamClassBox(){
   $("examClassBox").innerHTML = cache.classes.map(c =>
@@ -4293,6 +4337,7 @@ async function renderExamList(){
 
   box.innerHTML = "";
   data.forEach(exam => {
+    const klass = cache.classes.find(c => c.id === Number(exam.class_id));
     const classLabel = classNamesFor(exam.id) || (cache.classes.find(c => c.id === Number(exam.class_id)) || {}).name || "";
     const subject = cache.subjects.find(s => s.id === Number(exam.subject_id));
     const row = document.createElement("div");
@@ -4323,17 +4368,94 @@ async function openExamDetail(exam, klass, subject){
   currentExamId = exam.id;
   $("examDetailPanel").classList.remove("hidden");
   $("examDetailTitle").textContent = `Managing: ${exam.title} — ${klass ? klass.name : ''} / ${subject ? subject.name : ''}`;
+  $("emTitle").value = exam.title || "";
+  $("emDuration").value = exam.duration_minutes || "";
+  $("emPerStudent").value = exam.questions_per_student || "";
+  show($("examQEdit"), false);
   await renderQuestionsTable();
   await renderSubmissionsTable();
 }
 
+let examQRows = [];
+
 async function renderQuestionsTable(){
   const { data } = await supa.from("exam_questions").select("*").eq("exam_id", currentExamId).order("position");
+  examQRows = data || [];
   const tbody = $("questionsTable").querySelector("tbody");
-  tbody.innerHTML = (data || []).map((q, i) =>
-    `<tr><td>${i+1}</td><td>${esc(q.question_text)}</td><td>${q.correct_option.toUpperCase()}</td><td>${q.marks}</td></tr>`
-  ).join("") || '<tr><td colspan="4" class="empty">No questions yet.</td></tr>';
+  tbody.innerHTML = examQRows.map((q, i) => `<tr>
+      <td>${i + 1}</td><td style="text-align:left">${esc(q.question_text)}</td>
+      <td>${esc(q.correct_option.toUpperCase())}</td><td>${q.marks}</td>
+      <td style="white-space:nowrap">
+        <button class="btn secondary eq-edit" data-id="${q.id}" style="padding:4px 8px;font-size:12px">Edit</button>
+        <button class="btn danger eq-del" data-id="${q.id}" style="padding:4px 8px;font-size:12px">Delete</button>
+      </td></tr>`).join("")
+    || '<tr><td colspan="5" class="empty">No questions yet.</td></tr>';
+
+  tbody.querySelectorAll(".eq-edit").forEach(btn => {
+    btn.onclick = () => openQuestionEdit(examQRows.find(x => x.id === Number(btn.dataset.id)));
+  });
+  tbody.querySelectorAll(".eq-del").forEach(btn => {
+    let armed = false;
+    btn.onclick = async () => {
+      if(!armed){
+        armed = true; btn.textContent = "Confirm?";
+        setTimeout(() => { armed = false; btn.textContent = "Delete"; }, 4000);
+        return;
+      }
+      const { error } = await supa.from("exam_questions").delete().eq("id", Number(btn.dataset.id));
+      if(error){ toast(error.message); return; }
+      toast("Question deleted.");
+      renderQuestionsTable();
+    };
+  });
 }
+
+function openQuestionEdit(q){
+  if(!q) return;
+  $("eqId").value = q.id;
+  $("eqText").value = q.question_text;
+  $("eqA").value = q.option_a; $("eqB").value = q.option_b;
+  $("eqC").value = q.option_c; $("eqD").value = q.option_d;
+  $("eqCorrect").value = q.correct_option;
+  $("eqMarks").value = q.marks;
+  show($("examQEdit"), true);
+  $("examQEdit").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+$("eqSave").onclick = async () => {
+  const payload = {
+    question_text: $("eqText").value.trim(),
+    option_a: $("eqA").value.trim(), option_b: $("eqB").value.trim(),
+    option_c: $("eqC").value.trim(), option_d: $("eqD").value.trim(),
+    correct_option: $("eqCorrect").value,
+    marks: Number($("eqMarks").value) || 1
+  };
+  if(!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d){
+    toast("Fill in the question and all four options.");
+    return;
+  }
+  const { error } = await supa.from("exam_questions").update(payload).eq("id", Number($("eqId").value));
+  if(error){ toast(error.message); return; }
+  show($("examQEdit"), false);
+  toast("Question saved.");
+  renderQuestionsTable();
+};
+$("eqCancel").onclick = () => show($("examQEdit"), false);
+
+// Exam details: title, duration and questions per student
+$("emSave").onclick = async () => {
+  const title = $("emTitle").value.trim();
+  if(!title){ toast("Enter a title."); return; }
+  const { error } = await supa.from("exams").update({
+    title,
+    duration_minutes: $("emDuration").value ? Number($("emDuration").value) : null,
+    questions_per_student: $("emPerStudent").value ? Number($("emPerStudent").value) : null
+  }).eq("id", currentExamId);
+  if(error){ toast(error.message); return; }
+  $("examDetailTitle").textContent = `Managing: ${title}`;
+  toast("Exam details saved.");
+  renderExamList();
+};
 
 $("examBulkBtn").onclick = async function(){
   show($("examBulkError"), false);
