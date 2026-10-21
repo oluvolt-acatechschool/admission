@@ -992,6 +992,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="field">
           <label for="examClassSelect">Class</label>
           <select id="examClassSelect" class="hidden"></select>
+          <div class="field" style="margin-top:8px"><label for="examKind">Type</label><select id="examKind"><option value="test">Test (out of 40, goes to CA)</option><option value="exam">Exam (out of 60, goes to Exam)</option></select></div>
           <div id="examClassBox" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:170px;overflow:auto"></div>
         </div>
         <div class="field">
@@ -1015,6 +1016,11 @@ h2,h3{color:var(--nav);margin-top:0}
       <button id="createExamBtn" class="btn primary" style="margin-top:8px">Create Exam</button>
 
       <h3 style="margin-top:20px">Existing Exams</h3>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="examTabTest" class="btn primary">Tests (out of 40)</button>
+        <button id="examTabExam" class="btn secondary">Exams (out of 60)</button>
+      </div>
+      <div class="field" style="margin-bottom:10px"><label for="examSearch">Search exams</label><input id="examSearch" type="search" placeholder="Type a title, class or subject"></div>
       <div id="examList"></div>
 
       <!-- Question builder + submissions, shown when an exam is selected -->
@@ -1049,6 +1055,10 @@ h2,h3{color:var(--nav);margin-top:0}
             <div class="field"><label for="emDuration">Duration (minutes, blank = no limit)</label><input id="emDuration" type="number" min="1"></div>
             <div class="field"><label for="emPerStudent">Questions per student (blank = all)</label><input id="emPerStudent" type="number" min="1"></div>
           </div>
+          <div class="field" style="margin-top:8px"><label for="emKind">Type</label><select id="emKind"><option value="test">Test (out of 40, goes to CA)</option><option value="exam">Exam (out of 60, goes to Exam)</option></select></div>
+          <div class="field" style="margin-top:8px"><label for="emSubject">Subject</label><select id="emSubject"></select></div>
+          <label style="display:block;font-size:13px;color:#6b7785;margin-top:8px">Classes (up to 5)</label>
+          <div id="emClassBox" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:170px;overflow:auto"></div>
           <button id="emSave" class="btn success" style="margin-top:8px">Save exam details</button>
         </div>
 
@@ -2993,7 +3003,7 @@ function showView(name){
   if(name === "reports") { updateStudentSelect(); loadExtrasForSelectedStudent(); }
   if(name === "ranges") renderRanges();
   if(name === "history") { renderHistory(); refreshPublishClasses(); renderBatches(); offShowStatus(); }
-  if(name === "exams") { renderExamClassBox(); updateExamSubjectSelect(); renderExamList(); }
+  if(name === "exams") { renderExamClassBox(); updateExamSubjectSelect(); renderExamList().then(applyExamFilters); }
   if(name === "cbt") { updateCbtSubjectSelect(); renderCbtList(); }
   if(name === "notices") renderNoticesAdmin();
   if(name === "cards") renderCardsView();
@@ -4247,7 +4257,7 @@ $("createExamBtn").onclick = async function(){
 
   const { data: made, error } = await supa.from("exams").insert({
     class_id: classIds[0], subject_id: subjectId, title, duration_minutes: duration,
-    questions_per_student: perStudent,
+    questions_per_student: perStudent, kind: $("examKind").value,
     session: cache.settings.session, term: cache.settings.term, is_open: false,
     opens_at: $("examOpens").value ? new Date($("examOpens").value).toISOString() : null,
     closes_at: $("examCloses").value ? new Date($("examCloses").value).toISOString() : null
@@ -4343,6 +4353,7 @@ async function renderExamList(){
       </span>
       <span>
         <button class="btn secondary window-btn">Window</button>
+        <button class="btn danger exam-del">Delete</button>
         <button class="btn secondary toggle-open-btn">${exam.is_open ? 'Close' : 'Open'}</button>
         <button class="btn primary manage-btn">Manage</button>
       </span>
@@ -4354,6 +4365,21 @@ async function renderExamList(){
     };
     row.querySelector(".manage-btn").onclick = () => openExamDetail(exam, klass, subject);
     row.querySelector(".window-btn").onclick = () => openExamWindow(exam);
+    row.dataset.kind = exam.kind || "exam";
+    const delExam = row.querySelector(".exam-del");
+    let delArmed = false;
+    delExam.onclick = async () => {
+      if(!delArmed){
+        delArmed = true; delExam.textContent = "Tap to confirm";
+        setTimeout(() => { delArmed = false; delExam.textContent = "Delete"; }, 4000);
+        return;
+      }
+      const { error } = await supa.from("exams").delete().eq("id", exam.id);
+      if(error){ toast(error.message); return; }
+      if(currentExamId === exam.id) show($("examDetailPanel"), false);
+      toast("Exam deleted.");
+      renderExamList();
+    };
     box.appendChild(row);
   });
 }
@@ -4365,6 +4391,13 @@ async function openExamDetail(exam, klass, subject){
   $("emTitle").value = exam.title || "";
   $("emDuration").value = exam.duration_minutes || "";
   $("emPerStudent").value = exam.questions_per_student || "";
+  $("emKind").value = exam.kind || "exam";
+  $("emSubject").innerHTML = cache.subjects.slice().sort((x, y) => x.name.localeCompare(y.name))
+    .map(x => `<option value="${x.id}" ${Number(exam.subject_id) === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
+  const { data: ecs } = await supa.from("exam_classes").select("class_id").eq("exam_id", exam.id);
+  const picked = new Set((ecs || []).map(r => Number(r.class_id)));
+  $("emClassBox").innerHTML = cache.classes.map(c =>
+    `<label style="display:block;font-size:14px;margin:4px 0"><input type="checkbox" class="em-class-cb" value="${c.id}" ${picked.has(c.id) ? "checked" : ""} style="width:auto;margin-right:6px">${esc(c.name)}</label>`).join("");
   show($("examQEdit"), false);
   await renderQuestionsTable();
   await renderSubmissionsTable();
@@ -4436,16 +4469,52 @@ $("eqSave").onclick = async () => {
 };
 $("eqCancel").onclick = () => show($("examQEdit"), false);
 
+let examTabKind = "test";
+
+function applyExamFilters(){
+  const q = $("examSearch").value.trim().toLowerCase();
+  [...$("examList").children].forEach(el => {
+    const kindOk = !el.dataset.kind || el.dataset.kind === examTabKind;
+    const textOk = !q || el.textContent.toLowerCase().includes(q);
+    el.style.display = kindOk && textOk ? "" : "none";
+  });
+}
+
+function setExamTab(kind){
+  examTabKind = kind;
+  $("examTabTest").className = kind === "test" ? "btn primary" : "btn secondary";
+  $("examTabExam").className = kind === "exam" ? "btn primary" : "btn secondary";
+  applyExamFilters();
+}
+
+$("examTabTest").onclick = () => setExamTab("test");
+$("examTabExam").onclick = () => setExamTab("exam");
+$("examSearch").oninput = applyExamFilters;
+
 // Exam details: title, duration and questions per student
 $("emSave").onclick = async () => {
   const title = $("emTitle").value.trim();
   if(!title){ toast("Enter a title."); return; }
+  const classIds = [...document.querySelectorAll(".em-class-cb:checked")].map(cb => Number(cb.value));
+  if(classIds.length === 0){ toast("Choose at least one class."); return; }
+  if(classIds.length > 5){ toast("You can choose up to 5 classes at a time."); return; }
+
   const { error } = await supa.from("exams").update({
     title,
+    subject_id: Number($("emSubject").value),
+    kind: $("emKind").value,
+    class_id: classIds[0],
     duration_minutes: $("emDuration").value ? Number($("emDuration").value) : null,
     questions_per_student: $("emPerStudent").value ? Number($("emPerStudent").value) : null
   }).eq("id", currentExamId);
   if(error){ toast(error.message); return; }
+
+  // Replace the class list for this exam
+  await supa.from("exam_classes").delete().eq("exam_id", currentExamId);
+  const { error: linkErr } = await supa.from("exam_classes").insert(
+    classIds.map(cid => ({ exam_id: currentExamId, class_id: cid })));
+  if(linkErr){ toast(linkErr.message); return; }
+
   $("examDetailTitle").textContent = `Managing: ${title}`;
   toast("Exam details saved.");
   renderExamList();
@@ -4516,12 +4585,12 @@ async function renderSubmissionsTable(){
     const student = cache.students.find(s => s.id === Number(sub.student_id));
     const statusLabel = sub.status === "pending" ? "Pending" : sub.status === "approved" ? "Approved" : "Rejected";
     const actionHTML = sub.status === "pending"
-      ? `<button class="btn success approve-btn" data-id="${sub.id}" data-student="${sub.student_id}" data-score="${sub.scaled_exam_score}">Approve &amp; Upload</button>
+      ? `<button class="btn success approve-btn" data-id="${sub.id}" data-student="${sub.student_id}" data-raw="${sub.raw_score}" data-max="${sub.max_score}">Approve &amp; Upload</button>
          <button class="btn danger reject-btn" data-id="${sub.id}">Reject</button>`
       : "—";
     return `<tr>
       <td>${esc(student ? student.full_name : "Unknown")}</td>
-      <td>${sub.raw_score} / ${sub.max_score} (scaled: ${sub.scaled_exam_score}/60)</td>
+      <td>${sub.raw_score} / ${sub.max_score} (${sub.max_score ? Math.round(sub.raw_score / sub.max_score * 100) : 0}%)</td>
       <td>${statusLabel}</td>
       <td>${actionHTML}</td>
     </tr>`;
@@ -4531,21 +4600,26 @@ async function renderSubmissionsTable(){
     btn.onclick = async () => {
       const exam = await supa.from("exams").select("*").eq("id", currentExamId).single();
       const studentId = Number(btn.dataset.student);
-      const scaledScore = Number(btn.dataset.score);
+      const raw = Number(btn.dataset.raw), max = Number(btn.dataset.max) || 1;
+      const pct = raw / max;
 
-      // Upload into the real scores table: keep any existing CA, set/replace the Exam component.
+      // A test is scored out of 40 into CA. An exam is scored out of 60 into Exam.
+      const isTest = (exam.data.kind || "exam") === "test";
+      const value = Math.round(pct * (isTest ? 40 : 60));
+
       const { data: existingScore } = await supa.from("scores").select("*")
         .eq("student_id", studentId).eq("subject_id", exam.data.subject_id)
         .eq("session", exam.data.session).eq("term", exam.data.term).maybeSingle();
 
-      const ca = existingScore ? existingScore.ca : 0;
+      const ca = isTest ? value : (existingScore ? existingScore.ca : 0);
+      const examPart = isTest ? (existingScore ? existingScore.exam : 0) : value;
       const student = cache.students.find(s => s.id === studentId);
       const source = student && student.is_demo ? "simulated" : "manual";
 
       const { error } = await supa.from("scores").upsert({
         student_id: studentId, subject_id: exam.data.subject_id,
         session: exam.data.session, term: exam.data.term,
-        ca, exam: scaledScore, source
+        ca, exam: examPart, source
       }, { onConflict: "student_id,subject_id,session,term" });
 
       if(error){ toast(error.message); return; }
