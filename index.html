@@ -4223,14 +4223,8 @@ $("deleteHistoryBtn").onclick = async function(){
 let currentExamId = null;
 
 function updateExamSubjectSelect(){
-  const checked = [...document.querySelectorAll(".exam-class-cb:checked")].map(cb => Number(cb.value));
-  const found = new Map();
-  if(checked.length === 0){
-    cache.subjects.forEach(x => found.set(x.id, x));
-  }else{
-    checked.forEach(cid => subjectsForClass(cid).forEach(x => found.set(x.id, x)));
-  }
-  const list = [...found.values()].sort((x, y) => x.name.localeCompare(y.name));
+  // Every subject in the school is offered, so senior subjects always appear
+  const list = cache.subjects.slice().sort((x, y) => x.name.localeCompare(y.name));
   $("examSubjectSelect").innerHTML = list.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
 }
 $("examClassSelect").onchange = updateExamSubjectSelect;
