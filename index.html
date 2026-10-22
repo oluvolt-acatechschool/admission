@@ -445,6 +445,7 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="dashboard-card student-nav-card" data-sview="cbt"><div style="font-size:24px">💻</div>CBT Practice</div>
         <div class="dashboard-card student-nav-card" data-sview="assignments"><div style="font-size:24px">📝</div>Assignments</div>
         <div class="dashboard-card student-nav-card" data-sview="upcoming"><div style="font-size:24px">📅</div>Upcoming</div>
+        <div class="dashboard-card student-nav-card" data-sview="examsportal"><div style="font-size:24px">📝</div>Tests &amp; Exams</div>
         <div class="dashboard-card student-nav-card" data-sview="helpdesk"><div style="font-size:24px">🛎️</div>Help Desk</div>
       </div>
     </div>
@@ -508,6 +509,13 @@ h2,h3{color:var(--nav);margin-top:0}
       <h2>Scheme of Work</h2>
       <div class="info">This term's scheme of work, subject by subject.</div>
       <div id="stuSchemeBox" style="margin-top:12px"></div>
+    </section>
+
+    <!-- TESTS AND EXAMS (student) -->
+    <section id="sview-examsportal" class="panel sview hidden">
+      <h2>Tests and Exams</h2>
+      <div class="info">Use the same username and password you use for the portal. Tests come first, then exams.</div>
+      <button id="openExamsPortalBtn" class="btn primary" style="margin-top:12px">Open tests and exams</button>
     </section>
 
     <!-- UPCOMING (student) -->
@@ -1019,7 +1027,9 @@ h2,h3{color:var(--nav);margin-top:0}
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="examTabTest" class="btn primary">Tests (out of 40)</button>
         <button id="examTabExam" class="btn secondary">Exams (out of 60)</button>
+        <button id="examArchiveBtn" class="btn secondary">Archive</button>
       </div>
+      <div id="examArchiveBox" class="hidden" style="margin-bottom:12px"></div>
       <div class="field" style="margin-bottom:10px"><label for="examSearch">Search exams</label><input id="examSearch" type="search" placeholder="Type a title, class or subject"></div>
       <div id="examList"></div>
 
@@ -2037,6 +2047,28 @@ $("examLoginBtn").onclick = async function(){
   renderExamListForStudent(data.exams || []);
 };
 
+// Loads the open tests and exams for the signed-in student, without asking for the password again
+async function loadExamsForStudent(){
+  const { data, error } = await supa.rpc("get_open_exams_for_student", {
+    p_admission_no: examSession.admissionNo, p_password: examSession.password
+  });
+  if(error || !data || data.error){
+    toast((data && data.error) || (error && error.message) || "Could not load tests and exams.");
+    return;
+  }
+  $("examLoginBox").classList.add("hidden");
+  renderExamListForStudent(data.exams || []);
+}
+
+$("openExamsPortalBtn").onclick = async () => {
+  if(!studentSession){ toast("Sign in first."); return; }
+  examSession = { admissionNo: studentSession.admissionNo, password: studentSession.password };
+  $("studentReportView").classList.add("hidden");
+  $("landingShell").classList.remove("hidden");
+  switchLandingTab("exam");
+  await loadExamsForStudent();
+};
+
 function renderExamListForStudent(exams){
   const box = $("examListBox");
   box.classList.remove("hidden");
@@ -2695,6 +2727,7 @@ $("studentLogoutBtn").onclick = function(){
   studentSession = null;
   studentLoginData = null;
   $("studentReportView").classList.add("hidden");
+  examSession = null;
   $("studentIdInput").value = "OLAS";
   $("studentSurnameInput").value = "";
   $("landingShell").classList.remove("hidden");
@@ -4379,10 +4412,10 @@ async function renderExamList(){
         setTimeout(() => { delArmed = false; delExam.textContent = "Delete"; }, 4000);
         return;
       }
-      const { error } = await supa.from("exams").delete().eq("id", exam.id);
-      if(error){ toast(error.message); return; }
+      const { data: res, error } = await supa.rpc("archive_and_delete_exam", { p_exam: exam.id });
+      if(error || !res || res.error){ toast((res && res.error) || (error && error.message) || "Could not delete."); return; }
       if(currentExamId === exam.id) show($("examDetailPanel"), false);
-      toast("Exam deleted.");
+      toast(`Exam deleted. ${res.archived} score(s) kept in the archive.`);
       renderExamList();
     };
     box.appendChild(row);
@@ -4497,6 +4530,34 @@ function setExamTab(kind){
 
 $("examTabTest").onclick = () => setExamTab("test");
 $("examTabExam").onclick = () => setExamTab("exam");
+
+// Archived exams: one line per exam, with how many scores were kept
+async function renderExamArchive(){
+  const box = $("examArchiveBox");
+  const { data, error } = await supa.from("exam_archive").select("*").order("archived_at", { ascending: false });
+  if(error){ box.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  const groups = {};
+  (data || []).forEach(r => {
+    const key = `${r.exam_id}|${r.title}|${r.session}|${r.term}`;
+    const g = groups[key] = groups[key] || { r, n: 0, pct: 0 };
+    g.n++;
+    if(r.max_score) g.pct += r.raw_score / r.max_score * 100;
+  });
+  const list = Object.values(groups);
+  box.innerHTML = list.length
+    ? list.map(g => `<div class="student-card" style="align-items:flex-start">
+        <span><strong>${esc(g.r.title)}</strong> <span class="tag">${g.r.kind === "test" ? "TEST · 40" : "EXAM · 60"}</span>
+          <br><small style="color:var(--muted)">${esc(g.r.subject || "")} · ${esc(g.r.class_names || "")} · ${esc(g.r.session || "")}, ${esc(g.r.term || "")}</small>
+          <br><small>${g.n} student(s) · average ${Math.round(g.pct / g.n)}%</small></span>
+      </div>`).join("")
+    : '<div class="empty">Nothing in the archive yet.</div>';
+}
+
+$("examArchiveBtn").onclick = async () => {
+  const hidden = $("examArchiveBox").classList.contains("hidden");
+  show($("examArchiveBox"), hidden);
+  if(hidden) await renderExamArchive();
+};
 $("examSearch").oninput = applyExamFilters;
 
 // Exam details: title, duration and questions per student
