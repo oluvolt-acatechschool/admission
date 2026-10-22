@@ -2042,18 +2042,23 @@ function renderExamListForStudent(exams){
   box.classList.remove("hidden");
 
   if(exams.length === 0){
-    box.innerHTML = '<div class="empty">No exams are open for your class right now.</div>';
+    box.innerHTML = '<div class="empty">No tests or exams are open for your class right now.</div>';
     return;
   }
 
-  box.innerHTML = exams.map(e => `
+  const card = e => `
     <div class="student-card">
       <span><strong>${esc(e.title)}</strong> <span class="tag">${esc(e.subject)}</span></span>
       <span>${e.submitted
         ? '<span class="tag live">Submitted</span>'
         : `<button class="btn primary start-exam-btn" data-id="${e.id}">Start</button>`}</span>
-    </div>
-  `).join("");
+    </div>`;
+
+  const tests = exams.filter(e => e.kind === "test");
+  const exams2 = exams.filter(e => e.kind !== "test");
+  box.innerHTML =
+    (tests.length ? `<h3 style="margin:8px 0">Tests (out of 40)</h3>${tests.map(card).join("")}` : "") +
+    (exams2.length ? `<h3 style="margin:14px 0 8px">Exams (out of 60)</h3>${exams2.map(card).join("")}` : "");
 
   box.querySelectorAll(".start-exam-btn").forEach(btn => {
     btn.onclick = () => startExam(Number(btn.dataset.id));
@@ -4387,7 +4392,7 @@ async function renderExamList(){
 async function openExamDetail(exam, klass, subject){
   currentExamId = exam.id;
   $("examDetailPanel").classList.remove("hidden");
-  $("examDetailTitle").textContent = `Managing: ${exam.title} — ${klass ? klass.name : ''} / ${subject ? subject.name : ''}`;
+  $("examDetailTitle").textContent = `${exam.kind === "test" ? "TEST · out of 40" : "EXAM · out of 60"} — Managing: ${exam.title} — ${klass ? klass.name : ''} / ${subject ? subject.name : ''}`;
   $("emTitle").value = exam.title || "";
   $("emDuration").value = exam.duration_minutes || "";
   $("emPerStudent").value = exam.questions_per_student || "";
@@ -4482,6 +4487,9 @@ function applyExamFilters(){
 
 function setExamTab(kind){
   examTabKind = kind;
+  $("examKind").value = kind;
+  show($("examDetailPanel"), false);
+  currentExamId = null;
   $("examTabTest").className = kind === "test" ? "btn primary" : "btn secondary";
   $("examTabExam").className = kind === "exam" ? "btn primary" : "btn secondary";
   applyExamFilters();
@@ -4614,7 +4622,7 @@ async function renderSubmissionsTable(){
       const ca = isTest ? value : (existingScore ? existingScore.ca : 0);
       const examPart = isTest ? (existingScore ? existingScore.exam : 0) : value;
       const student = cache.students.find(s => s.id === studentId);
-      const source = student && student.is_demo ? "simulated" : "manual";
+      const source = "manual";
 
       const { error } = await supa.from("scores").upsert({
         student_id: studentId, subject_id: exam.data.subject_id,
