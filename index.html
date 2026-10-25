@@ -406,6 +406,9 @@ h2,h3{color:var(--nav);margin-top:0}
         <div id="examLoginError" class="warn hidden"></div>
       </div>
 
+      <div id="examTopBar" class="hidden" style="text-align:right;margin-top:12px">
+        <button id="examTopLogoutBtn" class="btn secondary">Log out</button>
+      </div>
       <div id="examListBox" class="hidden" style="margin-top:16px"></div>
 
       <div id="examTakeBox" class="hidden" style="margin-top:16px">
@@ -422,6 +425,9 @@ h2,h3{color:var(--nav);margin-top:0}
       </div>
 
       <div id="examDoneBox" class="hidden info" style="margin-top:16px">
+        <div style="margin-bottom:10px">Your answers have been submitted.</div>
+        <button id="examBackToListBtn" class="btn primary">Back to my tests</button>
+        <button id="examLogoutBtn" class="btn secondary">Log out</button>
         Submitted! Your score will be reviewed by your school before it appears on your report.
       </div>
     </section>
@@ -2069,9 +2075,33 @@ $("openExamsPortalBtn").onclick = async () => {
   await loadExamsForStudent();
 };
 
+// Clears the exam sign-in and returns to the sign-in box, without a page refresh
+function examReturnToLogin(){
+  examSession = null;
+  clearInterval(examTimerInterval);
+  show($("examTakeBox"), false);
+  show($("examDoneBox"), false);
+  show($("examListBox"), false);
+  show($("examTopBar"), false);
+  $("examListBox").innerHTML = "";
+  $("examPasswordInput").value = "";
+  show($("examLoginBox"), true);
+}
+
+$("examTopLogoutBtn").onclick = examReturnToLogin;
+$("examLogoutBtn").onclick = examReturnToLogin;
+
+// Back to the list after a submission, so the next test can be chosen
+$("examBackToListBtn").onclick = async () => {
+  show($("examDoneBox"), false);
+  show($("examTakeBox"), false);
+  await loadExamsForStudent();
+};
+
 function renderExamListForStudent(exams){
   const box = $("examListBox");
   box.classList.remove("hidden");
+  show($("examTopBar"), true);
 
   if(exams.length === 0){
     box.innerHTML = '<div class="empty">No tests or exams are open for your class right now.</div>';
