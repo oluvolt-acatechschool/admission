@@ -1094,6 +1094,23 @@ h2,h3{color:var(--nav);margin-top:0}
           <button id="eqCancel" class="btn secondary" style="margin-top:8px">Cancel</button>
         </div>
 
+        <div class="subcard" style="margin-top:10px">
+          <h4>Reuse these questions</h4>
+          <div class="info">Copies the questions with their correct answers. The copies are added after any questions already in the destination, and you can change the number and the time before copying.</div>
+          <div class="formgrid" style="margin-top:8px">
+            <div class="field"><label for="rcType">Copy to</label>
+              <select id="rcType"><option value="assignment">An assignment</option><option value="exam">An exam</option></select></div>
+            <div class="field"><label for="rcTarget">Destination</label><select id="rcTarget"></select></div>
+            <div class="field"><label for="rcCount">Number of questions (blank = all)</label><input id="rcCount" type="number" min="1"></div>
+            <div class="field"><label for="rcTime">Time limit in minutes (blank = none)</label><input id="rcTime" type="number" min="1"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button id="rcCopyBtn" class="btn success">Copy questions</button>
+            <button id="rcTextBtn" class="btn secondary">Copy as text</button>
+          </div>
+          <div id="rcMsg" class="hidden" style="margin-top:8px;padding:8px;border-radius:6px"></div>
+        </div>
+
         <h4>Add Question</h4>
         <div class="field"><label for="qText">Question</label><input id="qText" type="text"></div>
         <div class="formgrid" style="margin-top:8px">
@@ -4460,6 +4477,9 @@ async function openExamDetail(exam, klass, subject){
   $("emDuration").value = exam.duration_minutes || "";
   $("emPerStudent").value = exam.questions_per_student || "";
   $("emKind").value = exam.kind || "exam";
+  $("rcCount").value = "";
+  $("rcTime").value = exam.duration_minutes || "";
+  rcLoadTargets();
   $("emSubject").innerHTML = cache.subjects.slice().sort((x, y) => x.name.localeCompare(y.name))
     .map(x => `<option value="${x.id}" ${Number(exam.subject_id) === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
   const { data: ecs } = await supa.from("exam_classes").select("class_id").eq("exam_id", exam.id);
@@ -4472,6 +4492,72 @@ async function openExamDetail(exam, klass, subject){
 }
 
 let examQRows = [];
+
+function rcNote(text, ok){
+  $("rcMsg").textContent = text;
+  $("rcMsg").style.background = ok ? "#e8f5ee" : "#fbeaea";
+  $("rcMsg").style.color = ok ? "#1e7b4a" : "#a4262c";
+  show($("rcMsg"), true);
+}
+
+// Fills the destination list with assignments, or with the other exams
+async function rcLoadTargets(){
+  if($("rcType").value === "assignment"){
+    const { data } = await supa.from("assignments").select("id,title").order("created_at", { ascending: false });
+    $("rcTarget").innerHTML = (data || []).map(a => `<option value="${a.id}">${esc(a.title)}</option>`).join("");
+  }else{
+    let q = supa.from("exams").select("id,title,kind").order("created_at", { ascending: false });
+    if(currentExamId) q = q.neq("id", currentExamId);
+    const { data } = await q;
+    $("rcTarget").innerHTML = (data || []).map(e =>
+      `<option value="${e.id}">${esc(e.title)} (${e.kind === "test" ? "test" : "exam"})</option>`).join("");
+  }
+}
+$("rcType").onchange = rcLoadTargets;
+
+$("rcCopyBtn").onclick = async () => {
+  show($("rcMsg"), false);
+  if(examQRows.length === 0){ rcNote("This exam has no questions to copy.", false); return; }
+  const target = Number($("rcTarget").value);
+  if(!target){ rcNote("Choose a destination first.", false); return; }
+
+  const count = $("rcCount").value ? Math.min(Number($("rcCount").value), examQRows.length) : examQRows.length;
+  const time = $("rcTime").value ? Number($("rcTime").value) : null;
+  const picked = examQRows.slice(0, count).map(q => ({
+    question_text: q.question_text, option_a: q.option_a, option_b: q.option_b,
+    option_c: q.option_c, option_d: q.option_d, correct_option: q.correct_option, marks: q.marks
+  }));
+
+  if($("rcType").value === "assignment"){
+    const { error } = await supa.from("assignment_questions").insert(picked.map(r => ({ ...r, assignment_id: target })));
+    if(error){ rcNote(error.message, false); return; }
+    const { error: uErr } = await supa.from("assignments")
+      .update({ questions_per_student: count, time_limit_minutes: time }).eq("id", target);
+    if(uErr){ rcNote(uErr.message, false); return; }
+  }else{
+    const { error } = await supa.from("exam_questions").insert(picked.map((r, i) => ({ ...r, exam_id: target, position: i })));
+    if(error){ rcNote(error.message, false); return; }
+    const { error: uErr } = await supa.from("exams")
+      .update({ questions_per_student: count, duration_minutes: time }).eq("id", target);
+    if(uErr){ rcNote(uErr.message, false); return; }
+  }
+  rcNote(`Copied ${picked.length} question(s) with their correct answers.`, true);
+};
+
+// Puts every question on the clipboard in the same format used for bulk import
+$("rcTextBtn").onclick = async () => {
+  if(examQRows.length === 0){ rcNote("This exam has no questions to copy.", false); return; }
+  const text = examQRows.map(q => [
+    `Q: ${q.question_text}`, `A: ${q.option_a}`, `B: ${q.option_b}`,
+    `C: ${q.option_c}`, `D: ${q.option_d}`, `ANSWER: ${q.correct_option}`, `MARKS: ${q.marks}`
+  ].join("\n")).join("\n---\n");
+  try{
+    await navigator.clipboard.writeText(text);
+    rcNote(`${examQRows.length} question(s) copied as text.`, true);
+  }catch(e){
+    rcNote("The browser would not copy automatically. Use the bulk import box to paste the questions instead.", false);
+  }
+};
 
 async function renderQuestionsTable(){
   const { data } = await supa.from("exam_questions").select("*").eq("exam_id", currentExamId).order("position");
