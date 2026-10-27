@@ -731,7 +731,12 @@ h2,h3{color:var(--nav);margin-top:0}
         <h3>Portal Restriction</h3>
         <div class="info">A flagged student can still sign in, but can only see and update their bio data. Exams, assignments, results, materials and everything else are blocked until you lift the flag.</div>
         <div class="formgrid" style="margin-top:8px">
-          <div class="field"><label for="resStudent">Student</label><select id="resStudent"></select></div>
+          <div class="field"><label for="resClass">Show class</label><select id="resClass"></select></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <button id="resSelectAllBtn" class="btn secondary" style="padding:6px 10px;font-size:13px">Select all shown</button>
+            <button id="resClearBtn" class="btn secondary" style="padding:6px 10px;font-size:13px">Clear</button>
+          </div>
+          <div id="resStudentBox" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:240px;overflow:auto;margin-top:6px"></div>
           <div class="field"><label for="resReason">Reason (shown to the student)</label><input id="resReason" type="text" placeholder="e.g. Fee balance"></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -5989,9 +5994,23 @@ $("taAddBtn").onclick = async () => {
 
 /* ================= PORTAL RESTRICTION (admin) ================= */
 function renderRestrictionPanel(){
-  const sorted = cache.students.slice().sort((a, b) => a.full_name.localeCompare(b.full_name));
-  $("resStudent").innerHTML = sorted.map(st =>
-    `<option value="${st.id}">${esc(st.full_name)} (${esc(st.admission_no || "")})${st.portal_restricted ? " · FLAGGED" : ""}</option>`).join("");
+  const keep = $("resClass").value;
+  $("resClass").innerHTML = `<option value="">All classes</option>` +
+    cache.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  if(keep) $("resClass").value = keep;
+  const classId = $("resClass").value ? Number($("resClass").value) : null;
+
+  const shown = cache.students
+    .filter(st => !classId || Number(st.class_id) === classId)
+    .sort((x, y) => x.full_name.localeCompare(y.full_name));
+  $("resStudentBox").innerHTML = shown.length ? shown.map(st => {
+    const k = cache.classes.find(c => c.id === Number(st.class_id));
+    return `<label style="display:block;font-size:14px;margin:4px 0">
+      <input type="checkbox" class="res-cb" value="${st.id}" style="width:auto;margin-right:6px">
+      ${esc(st.full_name)} <small style="color:#6b7785">${esc(st.admission_no || "")} ${k ? esc(k.name) : ""}</small>
+      ${st.portal_restricted ? ' <span class="tag demo">FLAGGED</span>' : ""}</label>`;
+  }).join("") : '<div class="empty">No students in this class.</div>';
+
   const flagged = cache.students.filter(st => st.portal_restricted);
   $("resList").innerHTML = flagged.length
     ? flagged.map(st => `<div class="student-card"><span><strong>${esc(st.full_name)}</strong> <span class="tag demo">FLAGGED</span>
@@ -5999,16 +6018,23 @@ function renderRestrictionPanel(){
     : '<div class="empty">No students are flagged.</div>';
 }
 
+$("resClass").onchange = renderRestrictionPanel;
+$("resSelectAllBtn").onclick = () => document.querySelectorAll(".res-cb").forEach(cb => { cb.checked = true; });
+$("resClearBtn").onclick = () => document.querySelectorAll(".res-cb").forEach(cb => { cb.checked = false; });
+
+// Flags or lifts every ticked student in one update
 async function setRestriction(on){
-  const id = Number($("resStudent").value);
-  if(!id){ toast("Choose a student."); return; }
+  const ids = [...document.querySelectorAll(".res-cb:checked")].map(cb => Number(cb.value));
+  if(ids.length === 0){ toast("Tick at least one student."); return; }
   const reason = on ? ($("resReason").value.trim() || "Restricted by the school") : null;
-  const { error } = await supa.from("students").update({ portal_restricted: on, restriction_reason: reason }).eq("id", id);
+  const { error } = await supa.from("students").update({ portal_restricted: on, restriction_reason: reason }).in("id", ids);
   if(error){ toast(error.message); return; }
-  const st = cache.students.find(x => x.id === id);
-  if(st){ st.portal_restricted = on; st.restriction_reason = reason; }
+  ids.forEach(id => {
+    const st = cache.students.find(x => x.id === id);
+    if(st){ st.portal_restricted = on; st.restriction_reason = reason; }
+  });
   $("resReason").value = "";
-  toast(on ? "Student flagged. Only bio data is available to them." : "Restriction lifted.");
+  toast(on ? `${ids.length} student(s) flagged.` : `Restriction lifted for ${ids.length} student(s).`);
   renderRestrictionPanel();
 }
 $("resFlagBtn").onclick = () => setRestriction(true);
