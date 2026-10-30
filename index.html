@@ -732,9 +732,9 @@ h2,h3{color:var(--nav);margin-top:0}
         <div class="info">A flagged student can still sign in, but can only see and update their bio data. Exams, assignments, results, materials and everything else are blocked until you lift the flag.</div>
         <div class="formgrid" style="margin-top:8px">
           <div class="field"><label for="resClass">Show class</label><select id="resClass"></select></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            <button id="resSelectAllBtn" class="btn secondary" style="padding:6px 10px;font-size:13px">Select all shown</button>
-            <button id="resClearBtn" class="btn secondary" style="padding:6px 10px;font-size:13px">Clear</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:flex-start;align-self:flex-start;height:auto">
+            <button id="resSelectAllBtn" class="btn secondary" style="height:auto;align-self:flex-start;width:auto;padding:6px 10px;font-size:13px">Select all shown</button>
+            <button id="resClearBtn" class="btn secondary" style="height:auto;align-self:flex-start;width:auto;padding:6px 10px;font-size:13px">Clear</button>
           </div>
           <div id="resStudentBox" style="border:1px solid #bfc6cc;border-radius:6px;padding:8px;max-height:240px;overflow:auto;margin-top:6px"></div>
           <div class="field"><label for="resReason">Reason (shown to the student)</label><input id="resReason" type="text" placeholder="e.g. Fee balance"></div>
@@ -2065,7 +2065,7 @@ $("examLoginBtn").onclick = async function(){
   });
 
   if(error || !data || data.error){
-    $("examLoginError").textContent = (data && data.error) || (error && error.message) || "Login failed.";
+    $("examLoginError").textContent = await loginFailureMessage(admissionNo, password, (data && data.error) || (error && error.message) || "Login failed.");
     $("examLoginError").classList.remove("hidden");
     return;
   }
@@ -2075,13 +2075,30 @@ $("examLoginBtn").onclick = async function(){
   renderExamListForStudent(data.exams || []);
 };
 
+// Explains a failed sign-in: invalid details, too many attempts, or flagged. Falls back to the given text.
+async function loginFailureMessage(admissionNo, password, fallback){
+  const { data } = await supa.rpc("check_student_status", { p_admission_no: admissionNo, p_password: password });
+  if(data && data.status === "restricted"){
+    return "Your portal access has been restricted" + (data.reason ? ". Reason: " + data.reason : "") + ". Please see the school admin.";
+  }
+  if(data && data.status === "locked"){
+    return "Too many wrong attempts. Please wait 15 minutes and try again.";
+  }
+  if(data && data.status === "invalid"){
+    return "Invalid Student ID or password.";
+  }
+  return fallback;
+}
+
 // Loads the open tests and exams for the signed-in student, without asking for the password again
 async function loadExamsForStudent(){
   const { data, error } = await supa.rpc("get_open_exams_for_student", {
     p_admission_no: examSession.admissionNo, p_password: examSession.password
   });
   if(error || !data || data.error){
-    toast((data && data.error) || (error && error.message) || "Could not load tests and exams.");
+    const msg = await loginFailureMessage(examSession.admissionNo, examSession.password,
+      (data && data.error) || (error && error.message) || "Could not load tests and exams.");
+    toast(msg);
     return;
   }
   $("examLoginBox").classList.add("hidden");
